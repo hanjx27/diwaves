@@ -196,8 +196,11 @@ class Article_comment extends React.PureComponent {
       const result = await Request.post('addUp',{
         userid:this.user.id,
         type:2,
+        username:this.user.name,
         objid:this.props.commenthome.id,
         parentid:this.props.commenthome.articleid,
+        commentcontent:this.props.commenthome.content,
+        commentuserid:this.props.commenthome.userid
       });
 
       this.myUpedcomments[this.props.commenthome.id] = 1
@@ -213,9 +216,12 @@ class Article_comment extends React.PureComponent {
   delUp = async() => {
     try {
       const result = await Request.post('delUp',{
-        userid:this.props.user.id,
+        userid:this.user.id,
+        username:this.user.name,
         type:2,
         objid:this.props.commenthome.id,
+        commentcontent:this.props.commenthome.content,
+        commentuserid:this.props.commenthome.userid,
       });
       this.myUpedcomments[this.props.commenthome.id] = -1
       AsyncStorage.setItem('myUpedcomments_' + this.user.id, JSON.stringify(this.myUpedcomments), function (error) {})
@@ -261,17 +267,17 @@ class Article_comment extends React.PureComponent {
             {this.state.uped &&
             <TouchableOpacity onPress={()=>{this.delUp()}} style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
               <MaterialCommunityIcons name='thumb-up' size={19} color={Colors.TextColor}/>
-              <Text style={{fontSize:14,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
+              <Text style={{color:'black',fontSize:14,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
             </TouchableOpacity>
             }
             {!this.state.uped &&
               <TouchableOpacity onPress={()=>{this.addUp()}} style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
               <MaterialCommunityIcons name='thumb-up-outline' size={19} color={'black'}/>
               {this.state.up == 0 &&
-              <Text style={{fontSize:14,marginLeft:3,marginTop:2}}>赞</Text>
+              <Text style={{color:'black',fontSize:14,marginLeft:3,marginTop:2}}>赞</Text>
               }
               {this.state.up > 0 &&
-              <Text style={{fontSize:14,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
+              <Text style={{color:'black',fontSize:14,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
               }
               </TouchableOpacity>
             }
