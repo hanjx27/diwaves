@@ -14,6 +14,7 @@ import { Request } from '../../utils/request';
 import { baseimgurl, baseurl } from '../../utils/Global';
 import {Colors} from '../../constants/iColors';
 import FocusBtn from '../../components/FocusBtn';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 export default class PersonScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -140,6 +141,14 @@ export default class PersonScreen extends React.Component {
       />
     </TouchableOpacity>
 
+    let forbidtext = '';
+    if(this.state.person) {
+      if(this.state.person.expire_ttl == -1) {
+        forbidtext = '! 由于发布违规内容，该用户已被永久封禁';
+      } else if(this.state.person.expire_ttl > 0) {
+        forbidtext = '! 由于发布违规内容，该用户已被封禁';
+      }
+    } 
     return (
       <View style={{flex: 1,flexDirection:'column',backgroundColor: 'white'}}>
       
@@ -164,32 +173,45 @@ export default class PersonScreen extends React.Component {
           }
 
           {(this.state.user == null || this.personid != this.state.user.id) &&
-            <FocusBtn focusChange={this.focusChange} focususerid={this.personid}></FocusBtn>
+            <FocusBtn /*focusChange={this.focusChange}*/ focususerid={this.personid}></FocusBtn>
           }
           </View>
           
-            {this.state.status &&
-            <View style={{marginTop:10,flexDirection:'row',}}>
-              <View style={{flex:1}}><Text style={styles.greytext}>发帖：<Text style={styles.numtext}>{this.state.status.articlecount}</Text></Text></View>
-              <View style={{flex:1}}><Text style={styles.greytext}>评论：<Text style={styles.numtext}>{this.state.status.commentcount}</Text></Text></View>
-              <View style={{flex:1}}><Text style={styles.greytext}>关注：<Text style={styles.numtext}>{this.state.status.focuscount}</Text></Text></View>
-              <View style={{flex:1}}><Text style={styles.greytext}>粉丝：<Text style={styles.numtext}>{this.state.status.fanscount}</Text></Text></View>
-            </View>
-            }
           </View>
 
-          { this.state.person && this.state.person.avatar &&
-          <View style={{position:'absolute',overflow:'hidden',top:10,left:20,borderWidth:2,borderColor:'white',borderRadius:84,width:84,height:84}}>
-              <Image resizeMode='stretch' source={{uri:baseimgurl + this.state.person.avatar}} style={{width:80,height:80}}></Image>
+          {this.state.person && !!this.state.person.avatar &&
+          <View style={{position:'absolute',overflow:'hidden',top:24,left:20,borderWidth:2,borderColor:'white',borderRadius:70,width:70,height:70}}>  
+            <Image resizeMode='cover' source={{uri:baseimgurl + this.state.person.avatar}} style={{width:66,height:66}}></Image>
           </View>
           }
-          { this.state.person && this.state.person.avatar &&
-          <View style={{position:'absolute',top:65,left:73,borderWidth:2,borderColor:'white',borderRadius:30,width:30,height:30}}>
-            <Image resizeMode='stretch' source={this.state.person.gender == '男' ? female:male} style={{borderRadius:13,width:26,height:26}}></Image>
+          {this.state.person && !this.state.person.avatar &&
+          <View style={{alignItems:"center",justifyContent:'center',position:'absolute',overflow:'hidden',top:24,left:20,borderWidth:2,borderColor:'white',borderRadius:70,width:70,height:70,backgroundColor:"#eee"}}> 
+            <AntDesign name='user' size={40} color={'#999'}/>
           </View>
           }
+          {this.state.person && this.state.person.gender!='' &&
+          <View style={{position:'absolute',top:70,left:62,borderWidth:2,borderColor:'white',borderRadius:26,width:26,height:26}}>
+            <Image resizeMode='stretch' source={this.state.person.gender == '男' ? male:female} style={{borderRadius:11,width:22,height:22}}></Image>
+          </View>
+          }
+
         </View>
-       
+          
+        {this.state.person && 
+        <View style={{paddingHorizontal:20,marginTop:10,flexDirection:'row',alignItems:'center',height:30,justifyContent:'space-between'}}>
+              <View style={{height:30,flexDirection:'row',alignItems:'center',}}>
+                <Text style={styles.greytext}>{'位置 : ' + (!!this.state.person.province?(this.state.person.province + "  " + this.state.person.city):'暂无')}</Text>
+              </View>
+        </View>
+        }
+        {this.state.person && this.state.person.expire_ttl >= -1 &&
+              <View style={{paddingLeft:20,flexDirection:'row'}}>
+                <TouchableOpacity style={{marginTop:10,paddingHorizontal:10,borderRadius:3,backgroundColor:'#fd676a',alignItems:'center',paddingVertical:5}}>
+                  <Text style={{color:'white',fontSize:11,fontWeight:'bold'}}>{forbidtext}</Text>
+                </TouchableOpacity>
+              </View>
+        }
+
         {this.state.status && this.state.person &&
         <View style={{marginTop:10,backgroundColor:'white',borderRadius:3,paddingLeft:20}}>
         <TouchableOpacity onPress={()=> {this.props.navigation.navigate('MyArticlesScreen',{user:this.state.person})}} style={{alignItems:'center',flexDirection:'row'}}>

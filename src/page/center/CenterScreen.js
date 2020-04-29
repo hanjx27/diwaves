@@ -10,6 +10,10 @@ import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 import { baseimgurl, baseurl } from '../../utils/Global';
 import QRCode from 'react-native-qrcode-svg';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {WToast,WSnackBar,WModal} from 'react-native-smart-tip'
+import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 export default class CenterScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -22,7 +26,7 @@ export default class CenterScreen extends React.Component {
     this.state = {
      user:null,
      status:null,
-     qrVisible:false
+     qrVisible:false,
     }
   }
 
@@ -32,30 +36,59 @@ export default class CenterScreen extends React.Component {
     if(user != null && user != '') {
       const json = JSON.parse(user);
       this.setState({user:json})
-      this.getPersonStatus(json.id);
+      await this.getPersonStatus(json.id);
     } else {
       this.setState({user:null})
     }
 
+
+    this._navListener = this.props.navigation.addListener("didFocus", () => {
+      this.loadUserData();
+    });
+
+    this.updateuserHandler = DeviceEventEmitter.addListener('updateuser', (data) => { 
+     
+      this.setState({
+        user:data.user
+      })
+    });
     this.logoutHandler = DeviceEventEmitter.addListener('logout', (data) => {
       this.setState({user:null})
     });
   }
 
   loadUserData = async() => {
-    if(this.state.user != null) {
-      this.getPersonStatus(this.state.user.id);
+    const user = await AsyncStorage.getItem('user');
+    if(user != null && user != '') { //user 已登录
+      if(!this.state.user) { // state里未登录状态
+        const json = JSON.parse(user);
+        this.setState({user:json});
+        await this.getPersonStatus(json.id);
+        await this.getUserExpire(json);
+      } else {// state里已登录状态，不用重复setstate了
+        await this.getPersonStatus(this.state.user.id);
+        await this.getUserExpire(this.state.user);
+      }
     }
-    /*const user = await AsyncStorage.getItem('user');
-    if(user != null && user != '') {
-      const json = JSON.parse(user);
-      this.setState({user:json})
-      this.getPersonStatus(json.id);
-    } else {
-      this.setState({user:null})
-    }*/
   }
 
+  getUserExpire = async(user) => {
+    try {
+      const result = await Request.post('getUserExpire',{
+        userid:user.id
+      });
+      const expire = result.data;
+      if(expire != user.expire_ttl) {
+        user.expire_ttl = expire;
+        this.setState({
+          user:user
+        })
+        await AsyncStorage.setItem('user',JSON.stringify(user));
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
   getPersonStatus = async(id) => {
     try {
       const result = await Request.post('getUserStatus',{
@@ -71,26 +104,22 @@ export default class CenterScreen extends React.Component {
   }
 
   componentDidMount = () => {
-  
-    this._navListener = this.props.navigation.addListener("didFocus", () => {
-        
-            //StatusBar.setBarStyle("dark-content"); //状态栏文字颜色
-            //StatusBar.setBackgroundColor("#2ba4da"); //状态栏背景色
-      this.loadUserData();
-    });
   }
 
   componentWillUnmount() {
+    console.log('will unmount')
     this._navListener.remove();
+    this.updateuserHandler.remove();
   }
 
   nologin = () => {
     Alert.alert('您尚未登录')
   }
   
-  wxLoginClick = async() => {
-    await this.getUserInfo(2);
-    DeviceEventEmitter.emit('login', null);
+  loginClick = async() => {
+    //await this.getUserInfo(3);
+    //DeviceEventEmitter.emit('login', this.state.user);
+    this.props.navigation.navigate('login');
   }
 
   getUserInfo = async(id) => {
@@ -106,6 +135,79 @@ export default class CenterScreen extends React.Component {
       console.log(error)
     }
   }
+
+  goMyfocus = ()=> {
+    this.props.navigation.navigate('MyFocusScreen');
+  }
+  goMyfans = ()=> {
+    this.props.navigation.navigate('MyFansScreen');
+  }
+
+  forbidReasonCheck = async() => {
+    try {
+      const result = await Request.post('getForbidReason',{
+        userid:this.state.user.id
+      });
+      Alert.alert(
+        '封禁原因',
+        "您的账户因发布违规内容：" + result.data.title + " 被封禁",
+        [
+          {text: '确定', onPress: () => {}},
+          {text: '申诉', onPress: async() => {
+            const result2 = await Request.post('addAppeal',{
+              userid:this.state.user.id,
+              reportid:result.data.id
+            });
+            let data = '申诉已发起';
+            if(result2.code == -1) {
+              data = '您已发起申诉，请耐心等待';
+            }
+            const toastOpts = {
+              data: data,
+              textColor: '#ffffff',
+              backgroundColor: Colors.TextColor,
+              duration: 1000, //1.SHORT 2.LONG
+              position: WToast.position.BOTTOM, // 1.TOP 2.CENTER 3.BOTTOM
+            }
+            WToast.show(toastOpts)
+          }}
+        ],
+        { cancelable: true }
+        )
+      
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+
+  formatSeconds(value) {
+    var theTime = parseInt(value);// 需要转换的时间秒 
+    var theTime1 = 0;// 分 
+    var theTime2 = 0;// 小时 
+    var theTime3 = 0;// 天
+    if(theTime > 60) { 
+     theTime1 = parseInt(theTime/60); 
+     theTime = parseInt(theTime%60); 
+     if(theTime1 > 60) {
+      theTime2 = parseInt(theTime1/60); 
+      theTime1 = parseInt(theTime1%60); 
+      if(theTime2 > 24){
+       //大于24小时
+       theTime3 = parseInt(theTime2/24);
+       theTime2 = parseInt(theTime2%24);
+      }
+     } 
+    } 
+    var result = '';
+    if(theTime2 > 0) { 
+     result = ""+parseInt(theTime2)+"小时"+result; 
+    } 
+    if(theTime3 > 0) { 
+     result = ""+parseInt(theTime3)+"天"+result; 
+    }
+    return result; 
+   }
 
   render() {
    
@@ -126,6 +228,16 @@ export default class CenterScreen extends React.Component {
 
     let login = require('../../images/login.png');
 
+    let forbidtext = '';
+    if(this.state.user) {
+      if(this.state.user.expire_ttl == -1) {
+        forbidtext = '! 您的账户已被永久封禁，点击查看原因';
+      } else if(this.state.user.expire_ttl > 0) {
+        forbidtext = '! 您的账户已被封禁，剩余' + this.formatSeconds(this.state.user.expire_ttl) + '，点击查看原因';
+      }
+    }
+    
+    
     
     return (
       
@@ -149,31 +261,24 @@ export default class CenterScreen extends React.Component {
             <View style={{backgroundColor:'white',paddingTop:15,paddingHorizontal:20,marginTop:10,width:width,borderTopLeftRadius:14,borderTopRightRadius:14}}>
             
               <View style={{marginTop:10,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                <Text style={{fontWeight:'bold',fontSize:15,color:'#222'}}>登录爱评论，体验更多功能</Text>
-                <TouchableOpacity onPress={this.wxLoginClick} style={{backgroundColor:'#33cafc',width:90,borderRadius:5,height:28,borderWidth:1,borderColor:'#33cafc',alignItems:'center',justifyContent:'center'}}>
-                  <Text style={{color:'white',fontSize:14}}>微信登录</Text>
+                <Text style={{fontWeight:'bold',fontSize:15,color:'#222'}}>登录数字海，体验更多功能</Text>
+                <TouchableOpacity onPress={this.loginClick} style={{backgroundColor:'#33cafc',width:80,borderRadius:5,height:30,borderWidth:1,borderColor:'#33cafc',alignItems:'center',justifyContent:'center'}}>
+                  <Text style={{color:'white',fontSize:14}}>登录</Text>
                 </TouchableOpacity>
-              </View>
-              
-              <View style={{marginTop:20,flexDirection:'row',}}>
-                <View style={{flex:1}}><Text style={styles.greytext}>发帖：<Text style={styles.numtext}>0</Text></Text></View>
-                <View style={{flex:1}}><Text style={styles.greytext}>评论：<Text style={styles.numtext}>0</Text></Text></View>
-                <View style={{flex:1}}><Text style={styles.greytext}>关注：<Text style={styles.numtext}>0</Text></Text></View>
-                <View style={{flex:1}}><Text style={styles.greytext}>粉丝：<Text style={styles.numtext}>0</Text></Text></View>
               </View>
   
             <View style={{marginTop:20,paddingVertical:10,marginBottom:10,borderTopColor:'#eee',borderTopWidth:0.5}}>
               <View style={{flexDirection:'row',backgroundColor:"#81c6fb",borderRadius:10}}>
                 <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
-                  <Text style={styles.whitetext}>今日获赞</Text>
+                  <Text style={styles.whitetext}>今日获阅读</Text>
                   <Text style={styles.whitetext}><Text style={{fontSize:16}}>0</Text>金币</Text>
                 </View>
                 <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
-                  <Text style={styles.whitetext}>本周获赞</Text>
+                  <Text style={styles.whitetext}>本周获阅读</Text>
                   <Text style={styles.whitetext}><Text style={{fontSize:16}}>0</Text>金币</Text>
                 </View>
                 <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
-                  <Text style={styles.whitetext}>本月获赞</Text>
+                  <Text style={styles.whitetext}>本月获阅读</Text>
                   <Text style={styles.whitetext}><Text style={{fontSize:16}}>0</Text>金币</Text>
                 </View>
               </View>
@@ -232,34 +337,52 @@ export default class CenterScreen extends React.Component {
           <View style={{backgroundColor:'white',paddingTop:15,paddingHorizontal:20,marginTop:10,width:width,borderTopLeftRadius:14,borderTopRightRadius:14}}>
           <View style={{width:width - 40,flexDirection:'row',justifyContent:'flex-end',height:30}}>
           </View>
-            <View style={{marginTop:10,flexDirection:'row',justifyContent:'space-between',alignItems:'flex-end'}}>
+            <View style={{marginTop:10}}>
+              <View style={{flexDirection:"row",alignItems:"center"}}>
               <Text style={{fontSize:18,fontWeight:'bold',color:'black'}}>{this.state.user.name}</Text>
-               <Text style={[styles.greytext,{display:'none'}]}>上次登录：1小时前</Text>
+              {this.state.user.level == 2 &&
+              <View style={{flexDirection:'row',alignItems:'center',marginLeft:10,backgroundColor:'#e6f2fd',paddingHorizontal:7,paddingVertical:5,borderRadius:5}}>
+                <MaterialIcons name='verified-user' size={11} color={'#1787fb'}/>
+                  <Text style={{marginLeft:3,color:'#1787fb',fontSize:11}}>管理员</Text>
+              </View>
+              } 
+              </View>
+              {this.state.user.expire_ttl >= -1 &&
+              <View style={{flexDirection:'row'}}>
+                <TouchableOpacity onPress={this.forbidReasonCheck} style={{marginTop:10,paddingHorizontal:10,borderRadius:3,backgroundColor:'#fd676a',alignItems:'center',paddingVertical:5}}>
+                  <Text style={{color:'white',fontSize:12,fontWeight:'bold'}}>{forbidtext}</Text>
+                </TouchableOpacity>
+              </View>
+              }
             </View>
-            <View style={{marginTop:10}}><Text style={styles.greytext}>{this.state.user.country + "  " + this.state.user.city}</Text></View>
+            <View style={{marginTop:10,flexDirection:'row',alignItems:'center',height:30,justifyContent:'space-between'}}>
+              <View style={{height:30,flexDirection:'row',alignItems:'center'}}>
+                <Text style={styles.greytext}>{'位置 : ' + (!!this.state.user.province?(this.state.user.province + "  " + this.state.user.city):'暂无')}</Text>
+              </View>
+              {this.state.status &&
+              <View style={{marginRight:20,height:30,marginLeft:20,flexDirection:'row',alignItems:'center'}}>
+                <TouchableOpacity onPress={this.goMyfocus} style={{height:30,flexDirection:'row',alignItems:'center',}}><Text style={styles.greytext}>关注：</Text><Text style={styles.numtext}>{this.state.status.focuscount}</Text></TouchableOpacity>
+                <Text style={{color:'#e1e1e1',fontSize:10}}>{'   |   '}</Text>
+                <TouchableOpacity onPress={this.goMyfans} style={{height:30,flexDirection:'row',alignItems:'center',}}><Text style={styles.greytext}>粉丝：</Text><Text style={styles.numtext}>{this.state.status.fanscount}</Text></TouchableOpacity>
+              </View>
+              }
+            </View>
             
-            {this.state.status &&
-            <View style={{marginTop:10,flexDirection:'row',}}>
-              <View style={{flex:1}}><Text style={styles.greytext}>发帖：<Text style={styles.numtext}>{this.state.status.articlecount}</Text></Text></View>
-              <View style={{flex:1}}><Text style={styles.greytext}>评论：<Text style={styles.numtext}>{this.state.status.commentcount}</Text></Text></View>
-              <View style={{flex:1}}><Text style={styles.greytext}>关注：<Text style={styles.numtext}>{this.state.status.focuscount}</Text></Text></View>
-              <View style={{flex:1}}><Text style={styles.greytext}>粉丝：<Text style={styles.numtext}>{this.state.status.fanscount}</Text></Text></View>
-            </View>
-            }
+  
           {this.state.status &&
-          <View style={{marginTop:20,paddingVertical:10,marginBottom:10,borderTopColor:'#eee',borderTopWidth:0.5}}>
+          <View style={{marginTop:10,paddingBottom:7,paddingTop:15,marginBottom:10,borderTopColor:'#eee',borderTopWidth:0.5}}>
             <View style={{flexDirection:'row',backgroundColor:"#81c6fb",borderRadius:10}}>
               <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
-                <Text style={styles.whitetext}>今日获赞</Text>
-                <Text style={styles.whitetext}><Text style={{fontSize:16}}>{this.state.status.rewarddaycount}</Text>金币</Text>
+                <Text style={styles.whitetext}>今日获阅读</Text>
+                <Text style={styles.whitetext}><Text style={{fontSize:16}}>{this.state.status.viewdaycount}</Text>次</Text>
               </View>
               <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
-                <Text style={styles.whitetext}>本周获赞</Text>
-                <Text style={styles.whitetext}><Text style={{fontSize:16}}>{this.state.status.rewardweekcount}</Text>金币</Text>
+                <Text style={styles.whitetext}>本周获阅读</Text>
+                <Text style={styles.whitetext}><Text style={{fontSize:16}}>{this.state.status.viewweekcount}</Text>次</Text>
               </View>
               <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
-                <Text style={styles.whitetext}>本月获赞</Text>
-                <Text style={styles.whitetext}><Text style={{fontSize:16}}>{this.state.status.rewardmonthcount}</Text>金币</Text>
+                <Text style={styles.whitetext}>本月获阅读</Text>
+                <Text style={styles.whitetext}><Text style={{fontSize:16}}>{this.state.status.viewmonthcount}</Text>次</Text>
               </View>
             </View>
           </View>
@@ -267,13 +390,21 @@ export default class CenterScreen extends React.Component {
            
           </View>
          
-
-          <View style={{position:'absolute',overflow:'hidden',top:40,left:20,borderWidth:2,borderColor:'white',borderRadius:84,width:84,height:84}}>
-            <Image resizeMode='stretch' source={{uri:baseimgurl + this.state.user.avatar}} style={{width:80,height:80}}></Image>
+          {!!this.state.user.avatar &&
+          <View style={{position:'absolute',overflow:'hidden',top:50,left:20,borderWidth:2,borderColor:'white',borderRadius:70,width:70,height:70}}>  
+            <Image resizeMode='cover' source={{uri:baseimgurl + this.state.user.avatar}} style={{width:66,height:66}}></Image>
           </View>
-          <View style={{position:'absolute',top:95,left:73,borderWidth:2,borderColor:'white',borderRadius:30,width:30,height:30}}>
-            <Image resizeMode='stretch' source={this.state.user.gender == '男' ? male:female} style={{borderRadius:13,width:26,height:26}}></Image>
+          }
+          {!this.state.user.avatar &&
+          <View style={{alignItems:"center",justifyContent:'center',position:'absolute',overflow:'hidden',top:50,left:20,borderWidth:2,borderColor:'white',borderRadius:70,width:70,height:70,backgroundColor:"#eee"}}> 
+            <AntDesign name='user' size={40} color={'#999'}/>
           </View>
+          }
+          {this.state.user.gender!='' &&
+          <View style={{position:'absolute',top:95,left:62,borderWidth:2,borderColor:'white',borderRadius:26,width:26,height:26}}>
+            <Image resizeMode='stretch' source={this.state.user.gender == '男' ? male:female} style={{borderRadius:11,width:22,height:22}}></Image>
+          </View>
+          }
         </View>
 
 
@@ -360,7 +491,8 @@ const styles = StyleSheet.create({
   },
   numtext:{
     color:Colors.TextColor,
-    fontSize:17
+    fontSize:15,
+    fontWeight:'bold'
   },
   whitetext:{
     color:'white',marginBottom:10,fontSize:14,fontWeight:'bold'

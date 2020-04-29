@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {ScrollView,Animated,DeviceEventEmitter,TextInput,NativeModules,StatusBar,FlatList,Dimensions,Modal,TouchableOpacity,TouchableWithoutFeedback,View,StyleSheet,Platform,Text, Alert} from 'react-native';
+import {Animated,DeviceEventEmitter,TextInput,NativeModules,StatusBar,FlatList,Dimensions,Modal,TouchableOpacity,TouchableWithoutFeedback,View,StyleSheet,Platform,Text, Alert} from 'react-native';
 
 import ScrollableTabView,{ScrollableTabBar, DefaultTabBar } from 'react-native-scrollable-tab-view';
 import ICommentTabBar from '../../components/ICommentTabBar/ICommentTabBar';
@@ -37,47 +37,11 @@ export default class HomeScreen extends React.Component {
     this.subtab_tiyu = [{
       title:'足球',
       selected:true,
-      list:[{
-        title:'周一004 意甲 卡利亚里VS拉齐奥 2019.12.17 03:45',
-        id:1
-        },{
-        title:'周二001 世俱杯 多哈萨德VS突尼斯希望 2019.12.17 22:30',
-        id:2
-        },{
-        title:'周二002 世俱杯 弗拉门戈VS利雅得希拉尔 2019.12.18 01：30',
-        id:3
-        },{
-        title:'周二003 德甲 云达不来梅VS美因茨 2019.12.18 01:30',
-        id:4
-        },{
-          title:'周一004 意甲 卡利亚里VS拉齐奥 2019.12.17 03:45',
-          id:5
-          },{
-          title:'周二001 世俱杯 多哈萨德VS突尼斯希望 2019.12.17 22:30',
-          id:6
-          },{
-          title:'周二002 世俱杯 弗拉门戈VS利雅得希拉尔 2019.12.18 01：30',
-          id:7
-          },{
-          title:'周二003 德甲 云达不来梅VS美因茨 2019.12.18 01:30',
-          id:8
-          }]
+      list:[]
     },{
       title:'篮球',
       selected:false,
-      list:[{
-        title:'123周一004 意甲 卡利亚里VS拉齐奥 2019.12.17 03:45',
-        id:1
-        },{
-        title:'123周二001 世俱杯 多哈萨德VS突尼斯希望 2019.12.17 22:30',
-        id:2
-        },{
-        title:'123周二002 世俱杯 弗拉门戈VS利雅得希拉尔 2019.12.18 01：30',
-        id:3
-        },{
-        title:'123周二003 德甲 云达不来梅VS美因茨 2019.12.18 01:30',
-        id:4
-        }]
+      list:[]
     }
     ]
 
@@ -111,11 +75,8 @@ export default class HomeScreen extends React.Component {
       
       subtab_tiyu:[],
       subtab_caijing:[],
-      subtab_hot:[],
+      subtab_hot:[]
 
-      dirs:[],
-      seldir:null,
-      selsubdir:null
     }
   }
 
@@ -166,34 +127,37 @@ export default class HomeScreen extends React.Component {
       });
       if(result.code == 1) {
         const dirs = result.data;
-        AsyncStorage.setItem('dirs',JSON.stringify(dirs)); //不增加userid后缀
         let subtab_caijing = null;
         let subtab_hot = null;
         let subtab_tiyu = null;
         for(let i = 0;i < dirs.length;i++) {
-          let dir = dirs[i];//新闻 财经
-          dir.subdirs[0].selected = true;
+          const dir = dirs[i];
+          let subtab = []
           for(let j = 0;j < dir.subdirs.length;j++) {
-            let subdir = dir.subdirs[j] //
-            subdir.subdirs.push({
-              title: "不限",
-              id:subdir.id
+            let subdir = dir.subdirs[j];
+            subtab.push({
+              id:subdir.id,
+              title:subdir.title,
+              selected:j == 0?true:false,
+              list:subdir.subdirs
             })
+            if(dir.title == '新闻') {
+              subtab_hot = subtab
+            } else if(dir.title == '财经') {
+              subtab_caijing = subtab
+            } else if(dir.title == '体育') {
+              subtab_tiyu = subtab
+            }
           }
         }
-
         this.setState({
-          dirs:dirs,
-          seldir:dirs[0],
-          selsubdir:dirs[0].subdirs[0],
           subtab_caijing,
           subtab_hot,
           subtab_tiyu
-        },()=> {
         })
-        //AsyncStorage.setItem('subtab_caijing',JSON.stringify(subtab_caijing)); //不增加userid后缀
-        //AsyncStorage.setItem('subtab_hot',JSON.stringify(subtab_hot)); //不增加userid后缀
-        //AsyncStorage.setItem('subtab_tiyu',JSON.stringify(subtab_tiyu)); //不增加userid后缀
+        AsyncStorage.setItem('subtab_caijing',JSON.stringify(subtab_caijing)); //不增加userid后缀
+        AsyncStorage.setItem('subtab_hot',JSON.stringify(subtab_hot)); //不增加userid后缀
+        AsyncStorage.setItem('subtab_tiyu',JSON.stringify(subtab_tiyu)); //不增加userid后缀
       } else {
 
       }
@@ -217,42 +181,78 @@ export default class HomeScreen extends React.Component {
     }
   }
 
-  componentDidMount = async() => {
-    //AsyncStorage.removeItem('reportCommentList');
-    //AsyncStorage.removeItem('reportList');
+  componentDidMount = () => {
+    this._navBlurListener = this.props.navigation.addListener("didBlur", () => {
+      DeviceEventEmitter.emit('someone_play', { id: -1});
+    })
+    /*this._navListener = this.props.navigation.addListener("didFocus", () => {
+    });*/
   }
 
   componentWillUnmount() {
+    //this._navListener.remove();
+    this._navBlurListener.remove();
   }
-  selectdir = (item) => {
-    this.setState({seldir:item})
-    for(let i = 0;i < item.subdirs.length;i++) {
-      if(item.subdirs[i].selected) {
-        this.setState({selsubdir:item.subdirs[i]})
-        break;
-      }
-    }
-  }
-
-  selectsubdir =(title) => {
-    let seldir = this.state.seldir;
-    let selsubdir = null;
-    for(let i = 0;i < seldir.subdirs.length;i++) {
-      seldir.subdirs[i].selected = false;
-      if(seldir.subdirs[i].title == title) {
-        seldir.subdirs[i].selected = true;
-        selsubdir = seldir.subdirs[i];
+  select_hot = (title) => {
+    let subtab_hot = this.state.subtab_hot;
+    
+    for(let i = 0;i < subtab_hot.length;i++) {
+      subtab_hot[i].selected = false;
+      if(subtab_hot[i].title == title) {
+        subtab_hot[i].selected = true;
+        this.subtab_hot_index = i;
       }
     }
     this.setState({
-      seldir:seldir,
-      selsubdir:selsubdir
+      subtab_hot:subtab_hot
+    })
+
+    this.news.changeDir(subtab_hot[this.subtab_hot_index]);
+  }
+  select_caijing = (title) => {
+    let subtab_caijing = this.state.subtab_caijing;
+    
+    for(let i = 0;i < subtab_caijing.length;i++) {
+      subtab_caijing[i].selected = false;
+      if(subtab_caijing[i].title == title) {
+        subtab_caijing[i].selected = true;
+        this.subtab_caijing_index = i;
+      }
+    }
+    this.setState({
+      subtab_caijing:subtab_caijing
     })
   }
-
-  
+  select_tiyu =  (title) => {
+    let subtab_tiyu = this.state.subtab_tiyu;
+    
+    for(let i = 0;i < subtab_tiyu.length;i++) {
+      subtab_tiyu[i].selected = false;
+      if(subtab_tiyu[i].title == title) {
+        subtab_tiyu[i].selected = true;
+        this.subtab_tiyu_index = i;
+      }
+    }
+    this.setState({
+      subtab_tiyu:subtab_tiyu
+    })
+  }
   
   issue = () => {
+    /*this.refs.issue.measure((a, b, c, d, e, f) => {
+      this.setState((prevState) => {
+        if (d + f === prevState.height && c === prevState.issuetop) {
+          return {
+            issueVisible: !prevState.issueVisible
+          }
+        } else {
+          return {
+            issueVisible: !prevState.issueVisible,
+            issuetop: d + f,
+          }
+        }
+      })
+    });*/
     this.props.navigation.navigate('CreateAritcle',{subtab_caijing:this.state.subtab_caijing,subtab_tiyu:this.state.subtab_tiyu,subtab_hot:this.state.subtab_hot})
   }
 
@@ -262,8 +262,20 @@ export default class HomeScreen extends React.Component {
   
 
   render() {
+    const shadowOpt = {
+      width:(width-70)/3,
+      height:60,
+      color:"#aaa",
+      border:2,
+      radius:2,
+      opacity:0.2,
+      x:1,
+      y:1,
+      style:{marginTop:10}
+    }
     let search = require('../../images/home/search.png')
     let issue = require('../../images/home/split.png')
+    
     return (
 
       <View ref='homewrap' style={{ flex: 1, flexDirection: 'column', backgroundColor: 'white' }}>
@@ -278,7 +290,7 @@ export default class HomeScreen extends React.Component {
           <TouchableOpacity onPress={this.search} style={{width:40,height:38,paddingTop:5,justifyContent:'flex-start',alignItems:'center'}}>
             <Feather name='search' size={22} color={'black'}/>
           </TouchableOpacity>
-          <TouchableOpacity onPress={this.issue} style={{marginLeft:0,width:0,height:38,paddingTop:5,justifyContent:'flex-start',alignItems:'center'}}>
+          <TouchableOpacity onPress={this.issue} style={{marginLeft:5,width:0,height:38,paddingTop:5,justifyContent:'flex-start',alignItems:'center'}}>
             <Entypo name='text' size={24} color={'black'}/>
           </TouchableOpacity>
           </View>
@@ -287,7 +299,7 @@ export default class HomeScreen extends React.Component {
         
         <ScrollableTabView
           onChangeTab={(obj) => {
-            //DeviceEventEmitter.emit('someone_play', { id: -1});<News></News>
+            //DeviceEventEmitter.emit('someone_play', { id: -1});
           }}
           initialPage={0}
           tabBarBackgroundColor='white'
@@ -298,37 +310,77 @@ export default class HomeScreen extends React.Component {
         <View tabLabel='推荐' style={{flex:1}}>
           <Recommend ref="recommend"></Recommend>
         </View>
-        <View tabLabel='榜单'>
-          <View style={{flexDirection:'row',marginTop:10,paddingLeft:5,justifyContent:"center"}}>
-          {this.state.dirs.length > 0 && this.state.dirs.map(item => {
-            return (<TouchableOpacity onPress={()=>{this.selectdir(item)}} style={{ height: 45,alignItems: 'center',justifyContent: 'center',width:60}}><Text style={[this.state.seldir.title == item.title ? {color:'black',fontSize:17}:{color:'#999',fontSize:17},{fontWeight:'bold'}]}>{item.title}</Text></TouchableOpacity>)
-          })}
+        <View tabLabel='榜单' style={{flex:1}}>
+          <View style={{flexDirection:'row'}}>
+            <TouchableOpacity><Text>新闻</Text></TouchableOpacity>
+            <TouchableOpacity><Text>财经</Text></TouchableOpacity>
           </View>
-
-          <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={{marginTop:5,flexDirection:'row',width: width,paddingLeft:15}}>
-            {this.state.seldir && this.state.seldir.subdirs.map(item => {
-                  return (<TabBtn title={item.title} selected={item.selected} onPressed={() => this.selectsubdir(item.title)}></TabBtn>)
-            })}
-          </ScrollView>
-
-          {this.state.selsubdir &&
-          <FlatList
+          <News></News>
+        </View>
+        <View tabLabel='关注' style={{flex:1}}>
+          <Focus></Focus>
+        </View>
+        {false &&  <View tabLabel='新闻' style={{flex:1}}>
+            <View style={{flexDirection:"row",backgroundColor:"white",paddingTop:15,paddingLeft:15}}>
+              {this.state.subtab_hot.map(item => {
+                  if(item.title == '体育') {
+                    return (<View></View>)
+                  }
+                  return (
+                    <TabBtn title={item.title} selected={item.selected} onPressed={() => this.select_hot(item.title)}></TabBtn>
+                  )
+                })}
+            </View>
+            {this.state.subtab_hot.length > 0 &&
+              <News onRef={(ref)=>{ this.news = ref}}  dir={this.state.subtab_hot[0]}></News>
+            }
+          </View>
+          }
+          {false &&  <View tabLabel='财经'>
+              <View style={{flexDirection:"row",backgroundColor:"white",paddingVertical:15,paddingLeft:15}}>
+              {this.state.subtab_caijing.map(item => {
+                  return (
+                    <TabBtn title={item.title} selected={item.selected} onPressed={() => this.select_caijing(item.title)}></TabBtn>
+                  )
+              })}
+              </View>
+              {this.state.subtab_caijing.length > 0 && this.state.subtab_caijing[this.subtab_caijing_index].list != null &&
+              <FlatList
               style={{ marginTop: 0,backgroundColor:'white'}}
-              data={this.state.selsubdir.subdirs}
+              data={this.state.subtab_caijing[this.subtab_caijing_index].list}
               renderItem={
                 ({ item }) => {
-                  return(<TouchableOpacity onPress={()=>{this.props.navigation.navigate('CategoryArticles',{dir:this.state.seldir,subdir:this.state.selsubdir,lastdir:item})}} style={styles.subsubtab}><Text style={{fontSize:14,color:'#222'}}>{item.title}</Text></TouchableOpacity>)
+                  return(<TouchableOpacity onPress={()=>{this.props.navigation.navigate('CategoryArticles',{dir:item})}} style={styles.subsubtab}><Text style={{fontSize:14,color:'#222'}}>{item.title}</Text></TouchableOpacity>)
                 }
               }
               ItemSeparatorComponent={this._separator}
             />
+              }
+          </View>
           }
-        </View>
-
-        <View tabLabel='关注' style={{flex:1}}>
-          <Focus></Focus>
-        </View>
-        
+          
+          {false && <View tabLabel='体育'>
+              <View style={{flexDirection:"row",backgroundColor:"white",paddingVertical:15,paddingLeft:15,borderBottomColor:"#eee",borderBottomWidth:0.5}}>
+                {this.state.subtab_tiyu.map(item => {
+                  return (
+                    <TabBtn title={item.title} selected={item.selected} onPressed={() => this.select_tiyu(item.title)}></TabBtn>
+                  )
+                })}
+              </View>
+              {this.state.subtab_tiyu.length > 0 && this.state.subtab_tiyu[this.subtab_tiyu_index].list != null &&
+              <FlatList
+              style={{ marginTop: 0,backgroundColor:'white'}}
+              data={this.state.subtab_tiyu[this.subtab_tiyu_index].list}
+              renderItem={
+                ({ item }) => {
+                  return(<TouchableOpacity onPress={()=>{this.props.navigation.navigate('CategoryArticles',{dir:item})}} style={styles.subsubtab}><Text style={{color:'#222',fontSize:14}}>{item.title}</Text></TouchableOpacity>)
+                }
+              }
+              ItemSeparatorComponent={this._separator}
+            />
+              }
+              <View></View>
+            </View>  }
         </ScrollableTabView>
 
 
@@ -379,7 +431,7 @@ export default class HomeScreen extends React.Component {
 
 const styles = StyleSheet.create({
   subsubtab:{
-    paddingHorizontal:20,paddingVertical:15,width:width,borderColor:'#eee',borderBottomWidth:0.5
+    paddingHorizontal:15,paddingVertical:15,width:width,borderColor:'#eee',borderBottomWidth:0.5
   }
 })
 

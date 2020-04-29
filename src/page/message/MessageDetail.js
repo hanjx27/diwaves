@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {Image,FlatList,StatusBar,NativeModules,PanResponder,TextInput,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated} from 'react-native';
+import {Image,FlatList,StatusBar,NativeModules,PanResponder,TextInput,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
@@ -55,6 +55,10 @@ export default class MessageDetail extends React.Component {
         touserid:this.person.id,
         content:this.state.content
       });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       if(result.code != -1) {
         let message = {
           id:result.data.id,
@@ -64,7 +68,11 @@ export default class MessageDetail extends React.Component {
         }
          let messages = this.state.messages;
          messages.push(message);
-         this.setState({messages:messages})
+         this.setState({messages:messages},()=> {
+          setTimeout(()=> {
+             this.flatlist.scrollToEnd();
+           },300)
+         })
          let i = 0;
          for(;i < this.messageList.length;i++) {
            if(this.messageList[i].touserid == this.person.id) {
@@ -75,7 +83,6 @@ export default class MessageDetail extends React.Component {
               this.messageList.splice(i,1);
               this.messageList.unshift(messagebody);
              }
-             
              break;
            }
          }
@@ -141,9 +148,12 @@ export default class MessageDetail extends React.Component {
             this.setState({
               messages:messages
             },() => {
-              /*setTimeout(()=> {
-                this.flatlist.scrollToEnd({animated:false});
-              },1000)*/
+              if(messages.length > 0) {
+                setTimeout(()=> {
+                 // this.flatlist.scrollToEnd();
+                },1000)
+              }
+              
             })
             if(this.messageList[i].userread == 0) {
               this.messageList[i].userread = 1;
@@ -156,7 +166,9 @@ export default class MessageDetail extends React.Component {
     }
   }
 
-  componentWillUnmount() {
+  componentWillUnmount = async() => {
+    //await AsyncStorage.setItem('messageList_' + this.state.user.id, JSON.stringify(this.messageList));
+
     this.keyboardWillShowListener.remove();
     this.keyboardWillHideListener.remove();
   }

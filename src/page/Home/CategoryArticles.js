@@ -28,8 +28,10 @@ export default class CategoryArticles extends React.Component {
     this.reportarticleid = -1;
     this.pagecount = 10;
     
+    this.title = props.navigation.getParam('title');
     this.dir = props.navigation.getParam('dir');
-  
+    this.subdir = props.navigation.getParam('subdir');
+    this.lastdir = props.navigation.getParam('lastdir');
 
     this.articleids = []
     this.index = 0;
@@ -45,8 +47,7 @@ export default class CategoryArticles extends React.Component {
        userpredict:null,
 
        reportVisible:false,
-       sort:'最新',
-
+       sort:'最热',
        end:1
     }
 
@@ -66,7 +67,9 @@ export default class CategoryArticles extends React.Component {
       this.reportList = JSON.parse(reportListstr)
     }
     
-    await this.loadPredict();
+    if(this.lastdir.title.indexOf('上证' >= 0) || this.lastdir.title.indexOf('深证' >= 0) || this.lastdir.title.indexOf('创业板指' >= 0)) {
+      await this.loadPredict('日线');
+    }
     await this.loadArticleIds();
     if(this.articleids.length > 0) {
       if(this.index == this.articleids.length) {
@@ -79,18 +82,21 @@ export default class CategoryArticles extends React.Component {
   }
 
   loadArticleIds = async() => {
+    console.log(this.lastdir)
     const result = await Request.post('articleIDsForApp',{
-      dir:this.dir.id,
+      dir:this.lastdir.id,
       sort:this.state.sort
     });
     if(result.code == 1) {
         this.articleids = result.data
         if(this.articleids.length > 0) {
-          if(this.index == this.articleids.length) {
-            this.setState({
-              end:2
-            })
-          }
+          this.setState({
+            end:2
+          })
+        } else {
+          this.setState({
+            end:1
+          })
         }
     }
   }
@@ -124,6 +130,11 @@ export default class CategoryArticles extends React.Component {
                 articles.push(this.state.articlesList[0])
               }
             }
+            const reportListstr = await AsyncStorage.getItem('reportList'); //不登录也可以投诉 因此reportlist 不用增加userid后缀
+            if(reportListstr) {
+              this.reportList = JSON.parse(reportListstr)
+            }
+
             for(let i = 0;i < ids.length;i++) {
               let article = result.data[ids[i]];
               if(this.reportList[article.id] == 1) {
@@ -149,11 +160,42 @@ export default class CategoryArticles extends React.Component {
       }
   }
 
-  loadPredict = async() => {
+  changepredicttype = async(type) => {
     try {
       const result = await Request.post('loadPredict',{
         userid:!!this.state.user?this.state.user.id:'',
-        dir:this.dir.id
+        dir:this.lastdir.id,
+        type:type
+      });
+      if(result.code == 1) {
+        if(result.data.predict) {
+          let articlesList = this.state.articlesList;
+          if(articlesList.length > 0 && articlesList[0].type == 2) {
+            articlesList.splice(0,1);
+          }
+
+          let articlelistnew = [];
+          result.data.type = 2;
+          result.data.id = result.data.predict.id;
+          articlelistnew.push(result.data)
+          articlelistnew = articlelistnew.concat(articlesList)
+          this.setState({
+            articlesList:articlelistnew
+          })
+        }
+        
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  loadPredict = async(type) => {
+    try {
+      const result = await Request.post('loadPredict',{
+        userid:!!this.state.user?this.state.user.id:'',
+        dir:this.lastdir.id,
+        type:type
       });
       if(result.code == 1) {
         if(result.data.predict) {
@@ -226,9 +268,11 @@ export default class CategoryArticles extends React.Component {
     this.flaglistloading = false;
   }
 
-  report = (articleid) => {
+  report = (articleid,title,publishuserid) => {
 
     this.reportarticleid = articleid;
+    this.reportarticletitle = title;
+    this.publishuserid = publishuserid;
     this.setState({
       reportVisible:true
     })
@@ -245,10 +289,16 @@ export default class CategoryArticles extends React.Component {
     try {
       const result = await Request.post('addReport',{
         userid:!!this.state.user?this.state.user.id:'',
-        articleid:this.reportarticleid,
-        text:text,
-        commentid:-1
+        objid:this.reportarticleid,
+        title:this.reportarticletitle,
+        publishuserid:this.publishuserid,
+        type:1,
+        text:text
       });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       if(result.code == 1) {
         let articlesList = this.state.articlesList;
         for(let i = 0;i < articlesList.length;i++) {
@@ -265,7 +315,7 @@ export default class CategoryArticles extends React.Component {
             data: '感谢您的举报,我们会尽快处理',
             textColor: '#ffffff',
             backgroundColor: Colors.TextColor,
-            duration: 700, //1.SHORT 2.LONG
+            duration: 1000, //1.SHORT 2.LONG
             position: WToast.position.TOP, // 1.TOP 2.CENTER 3.BOTTOM
           }
           WToast.show(toastOpts)
@@ -278,28 +328,23 @@ export default class CategoryArticles extends React.Component {
 
   
   render() {
+    let title = this.title != null ? this.title : (this.dir.title + '/' + this.subdir.title + (this.lastdir.title != '不限'?('/' +  this.lastdir.title):''))
     return (
       <View style={{flex: 1,flexDirection:'column',backgroundColor: 'white'}}>
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={this.dir.title} />
+      <Header title={title} />
 
       <View style={{marginTop:10,flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
-        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:30}} onPress={()=> {this.changeSort('最新')}}>
-          <Text style={[this.state.sort =='最新'?{color:Colors.TextColor}:{color:"black"},{fontSize:16}]} >最新</Text>
-        </TouchableOpacity>
-        <View>
-          <Text style={{fontSize:10}}>/</Text>
-        </View>
         <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:30}} onPress={()=> {this.changeSort('最热')}}>
           <Text style={[this.state.sort =='最热'?{color:Colors.TextColor}:{color:"black"},{fontSize:16}]}>最热</Text>
         </TouchableOpacity>
         <View>
           <Text style={{fontSize:10}}>/</Text>
         </View>
-        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:75,height:30}} onPress={()=> {this.changeSort('打赏量')}}>
-          <Text style={[this.state.sort =='打赏量'?{color:Colors.TextColor}:{color:"black"},{fontSize:16}]}>打赏量</Text>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:30}} onPress={()=> {this.changeSort('最新')}}>
+          <Text style={[this.state.sort =='最新'?{color:Colors.TextColor}:{color:"black"},{fontSize:16}]} >最新</Text>
         </TouchableOpacity>
       </View>
 
@@ -315,9 +360,9 @@ export default class CategoryArticles extends React.Component {
               renderItem={
                 ({ item }) => {
                   if(item.type == 1) {
-                    return (<Article report={this.report} article={item}></Article>)
+                    return (<Article hideDir={true} report={this.report} article={item}></Article>)
                   } else if(item.type == 2) {
-                    return (<PredictArticle dir={this.dir} predict={item.predict} userpredict={item.userpredict}></PredictArticle>)
+                    return (<PredictArticle changetype={this.changepredicttype} dir={this.lastdir} dirname={title} predict={item.predict} userpredict={item.userpredict}></PredictArticle>)
                   }
                 }
               }

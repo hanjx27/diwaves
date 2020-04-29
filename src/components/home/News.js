@@ -1,5 +1,5 @@
 import React from 'react';
-import {TouchableOpacity,Alert,FlatList,Dimensions,Text,View,ActivityIndicator,Modal,TouchableWithoutFeedback} from 'react-native';
+import {TouchableOpacity,DeviceEventEmitter,Alert,FlatList,Dimensions,Text,View,ActivityIndicator,Modal,TouchableWithoutFeedback} from 'react-native';
 
 import Article from '../Article'
 import Article_comment from '../Article_comment';
@@ -45,7 +45,25 @@ class News extends React.Component {
         this.flaglistloading = false;
       }
 
+      componentWillUnmount = ()=> {
+        this.loginHandler.remove();
+        this.logoutHandler.remove();
+      }
+
     componentDidMount = async() =>{
+
+      this.loginHandler = DeviceEventEmitter.addListener("login", async(data) => {
+        const user = await AsyncStorage.getItem('user');
+        if(user != null && user != '') {
+            const json = JSON.parse(user);
+            this.user = json;
+        }
+      })
+
+      this.logoutHandler = DeviceEventEmitter.addListener('logout', (data) => {
+        this.user = null;
+      });
+      
       const reportListstr = await AsyncStorage.getItem('reportList');
 
       if(reportListstr) {
@@ -86,11 +104,13 @@ class News extends React.Component {
       if(result.code == 1) {
           this.articleids = result.data
           if(this.articleids.length > 0) {
-            if(this.index == this.articleids.length) {
-              this.setState({
-                end:2
-              })
-            }
+            this.setState({
+              end:2
+            })
+          } else {
+            this.setState({
+              end:1
+            })
           }
       }
     }
@@ -119,7 +139,10 @@ class News extends React.Component {
               if(!refresh) {
                 articles = this.state.articlesList
               }
-
+              const reportListstr = await AsyncStorage.getItem('reportList'); //不登录也可以投诉 因此reportlist 不用增加userid后缀
+              if(reportListstr) {
+                this.reportList = JSON.parse(reportListstr)
+              }
               for(let i = 0;i < ids.length;i++) {
                 let article = result.data[ids[i]];
                 if(this.reportList[article.id] == 1) {
@@ -191,8 +214,10 @@ class News extends React.Component {
     
 
 
-    report = (articleid) => {
+    report = (articleid,title,publishuserid) => {
       this.reportarticleid = articleid;
+      this.reportarticletitle = title;
+      this.publishuserid = publishuserid;
       this.setState({
         reportVisible:true
       })
@@ -207,14 +232,19 @@ class News extends React.Component {
       this.reportList[this.reportarticleid] = 1;
       AsyncStorage.setItem('reportList', JSON.stringify(this.reportList), function (error) {})
   
-      
       try {
         const result = await Request.post('addReport',{
           userid:!!this.user?this.user.id:'',
-          articleid:this.reportarticleid,
-          text:text,
-          commentid:-1
+          objid:this.reportarticleid,
+          title:this.reportarticletitle,
+          publishuserid:this.publishuserid,
+          type:1,
+          text:text
         });
+        if(result.code == -2) {
+          Alert.alert('您已被封禁')
+          return;
+        }
         if(result.code == 1) {
           let articlesList = this.state.articlesList;
           for(let i = 0;i < articlesList.length;i++) {
@@ -231,7 +261,7 @@ class News extends React.Component {
               data: '感谢您的举报,我们会尽快处理',
               textColor: '#ffffff',
               backgroundColor: Colors.TextColor,
-              duration: 700, //1.SHORT 2.LONG
+              duration: 1000, //1.SHORT 2.LONG
               position: WToast.position.TOP, // 1.TOP 2.CENTER 3.BOTTOM
             }
             WToast.show(toastOpts)

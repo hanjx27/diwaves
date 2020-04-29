@@ -18,17 +18,17 @@ const {width,height} =  Dimensions.get('window');
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
 import { withNavigation } from 'react-navigation';
 
-import Icon from 'react-native-vector-icons/Ionicons'
+import Entypo from 'react-native-vector-icons/Entypo'
 import { BoxShadow } from 'react-native-shadow';
 
 
 const BackBtn = withNavigation((props) => {
   return (
     <TouchableOpacity onPress={() => {props.gobackfunction?props.gobackfunction() : props.navigation.goBack()}} style={[topStyles.btns, {flexDirection:'row',justifyContent:'flex-start', alignItems:'center'}]}>
-      <Icon
-        name='ios-arrow-back'
-        size={24}
-        color={props.color}
+      <Entypo
+        name='chevron-thin-left'
+        size={23}
+        color={'black'}
       />
       {props.isLeftTitle ? <Text style={[topStyles.title,  {color: props.color, paddingLeft: 20, fontSize: 16}] }>{props.title}</Text> : <Text />} 
       

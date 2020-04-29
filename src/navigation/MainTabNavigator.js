@@ -1,6 +1,6 @@
 import React from 'react';
 import {px} from '../utils/px';
-import { Image} from 'react-native';
+import { Image,View,Text} from 'react-native';
 import { createStackNavigator, createBottomTabNavigator } from 'react-navigation';
 
 
@@ -19,6 +19,12 @@ import MyCommentsScreen from '../page/center/MyCommentsScreen';
 import MyPredictsScreen from '../page/center/MyPredictsScreen';
 import MyDraftsScreen from '../page/center/MyDraftsScreen';
 import Settings from '../page/center/Settings';
+import Edit from '../page/center/Edit';
+import ChooseProvince from '../page/center/ChooseProvince';
+import ChooseCity from '../page/center/ChooseCity';
+import MyFocusScreen from '../page/center/MyFocusScreen';
+import MyFansScreen from '../page/center/MyFansScreen';
+import ChangePhone from '../page/center/ChangePhone';
 //article
 import ArticleScreen from '../page/article/ArticleScreen';
 import PredictScreen from '../page/article/PredictScreen';
@@ -27,6 +33,7 @@ import PushScreen from '../page/article/PushScreen';
 import RewardScreen from '../page/article/RewardScreen';
 //message
 import MessageScreen from '../page/message/MessageScreen';
+import ReportList from '../page/message/ReportList';
 
 //wallet
 import WalletScreen from '../page/wallet/WalletScreen';
@@ -40,6 +47,12 @@ import {Colors} from '../constants/iColors';
 import Icon from 'react-native-vector-icons/AntDesign'
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons'
 import Feather from 'react-native-vector-icons/Feather'
+
+
+
+import login from '../page/login';
+import WebContainer from '../page/WebContainer';
+
 const HomeStack = createStackNavigator({
   Home: HomeScreen
 }, {
@@ -64,6 +77,7 @@ const MainTabNavigator = createBottomTabNavigator(
   {
     '首页': HomeStack,
     '消息':MessageStack,
+    '发帖':CreateAritcle,
     '钱包':WalletStack,
     '我的':CenterStack
   },
@@ -71,38 +85,23 @@ const MainTabNavigator = createBottomTabNavigator(
     defaultNavigationOptions: ({ navigation }) => ({
       tabBarIcon: ({ focused, horizontal, tintColor }) => {
         const { routeName } = navigation.state;
-        let iconName;
-        let imgwidth = 21;
-        let imgheight = 21;
-        /*switch(routeName) {
-          case '首页':
-            iconName = focused ? require('../images/tab/home_active.png') : require('../images/tab/home.png');
-            imgwidth = 23;
-            break;
-          case '消息':
-            iconName = focused ? require('../images/tab/message_active.png') : require('../images/tab/message.png');
-            imgwidth = 20;
-            imgheight = 20;
-            break;
-          case '钱包':
-            iconName = focused ? require('../images/tab/wallet_active.png') : require('../images/tab/wallet.png');
-            
-            break;
-          case '我的':
-            iconName = focused ? require('../images/tab/center_active.png') : require('../images/tab/center.png');
-            break;
-        }
-
-        return <Image resizeMode='stretch' source={iconName} style={{width: imgwidth, height: imgheight}} />*/
         switch(routeName) {
           case '首页':
             return focused ? <Icon name='home' size={24} color={Colors.TextColor}/> : <Icon name='home' size={24} color={'black'}/>;
           case '消息':
             return focused ? <Feather name='message-square' size={23} color={Colors.TextColor}/> : <Feather name='message-square' size={23} color={'black'}/>;
+          case '发帖':
+            return <MaterialIcons style={{marginTop:-2}} name='add-box' size={29} color={Colors.TextColor}/>
           case '钱包':
             return focused ? <Feather name='pocket' size={23} color={Colors.TextColor}/> : <Feather name='pocket' size={23} color={'black'}/>;
           case '我的':
             return focused ? <Feather name='user' size={25} color={Colors.TextColor}/> : <Feather name='user' size={25} color={'black'}/>;
+        }
+      },tabBarOnPress: (event) => {
+        if(event.navigation.state.routeName == '发帖') {
+          event.navigation.navigate('CreateAritcle')
+        } else {
+          event.defaultHandler();//调用组建内默认的实现方法
         }
       },
     }),
@@ -137,12 +136,22 @@ const MainStack = createStackNavigator(
     TradeScreen:TradeScreen,
     MyArticlesScreen:MyArticlesScreen,
     MessageDetail:MessageDetail,
+    ReportList:ReportList,
     Scanner:Scanner,
     MyCommentsScreen:MyCommentsScreen,
     MyPredictsScreen:MyPredictsScreen,
     MyDraftsScreen:MyDraftsScreen,
+    MyFocusScreen:MyFocusScreen,
+    MyFansScreen:MyFansScreen,
     Search:Search,
-    Settings:Settings
+    Settings:Settings,
+    Edit:Edit,
+    ChooseProvince:ChooseProvince,
+    ChooseCity:ChooseCity,
+    ChangePhone:ChangePhone,
+
+    login:login,
+    WebContainer:WebContainer
   },{
     initialRouteName: 'MainTabNavigator',
     headerMode: 'none',

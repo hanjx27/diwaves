@@ -92,7 +92,7 @@ export default class MyPredictsScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={'预测记录'} isLeftTitle={true} />
+      <Header title={'预测记录'} />
       {
           this.state.isLoading && (
             <View style={{ flex: 1, padding: 50 }}>

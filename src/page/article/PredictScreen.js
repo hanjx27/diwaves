@@ -10,6 +10,23 @@ const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
 import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 import {Colors} from '../../constants/iColors';
+
+Date.prototype.Format = function (fmt) {
+  var o = {
+      "M+": this.getMonth() + 1, //月份 
+      "d+": this.getDate(), //日 
+      "h+": this.getHours(), //小时 
+      "m+": this.getMinutes(), //分 
+      "s+": this.getSeconds(), //秒 
+      "q+": Math.floor((this.getMonth() + 3) / 3), //季度 
+      "S": this.getMilliseconds() //毫秒 
+  };
+  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+  for (var k in o)
+  if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+  return fmt;
+}
+
 export default class PredictScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -25,6 +42,7 @@ export default class PredictScreen extends React.Component {
     this.userpredict = null;
     
     this.dir = props.navigation.getParam('dir');
+    this.dirname = props.navigation.getParam('dirname');
     this.pickimage = false;
     this.colors = ['#fa3c41','#fd6259','#fba74e','#5bd176','#3cbe56']
     this.state = {
@@ -32,7 +50,7 @@ export default class PredictScreen extends React.Component {
       lastday:'',
       lastdayprice:'',
       lastdayups:0,
-
+      predicttype:this.props.navigation.getParam('predict').type,
 
       predict:null,
       userpredict:null,
@@ -68,6 +86,12 @@ export default class PredictScreen extends React.Component {
       "mob": "15150377790",
       "pwd": "691Eot$$",
     }
+    let unit = "1d";
+    if(this.state.predicttype == "周线") {
+      unit = "1w"
+    } else if(this.state.predicttype == "月线") {
+      unit = "1M"
+    }
     const token = await Request.post2(url,JSON.stringify(body),'formdata');
     if(token) {
       let body2 = {
@@ -75,11 +99,11 @@ export default class PredictScreen extends React.Component {
       "code": this.code,
       token:token,
       "count": 10,
-      "unit": "1d",
-      "end_date": "2030-03-21",
+      "unit": unit,
+      "end_date": new Date().Format("yyyy-MM-dd"),
       }
       const result = await Request.post2(url,JSON.stringify(body2),'formdata');
-      console.log(result)
+      //console.log(result)
       try {
         if(result.length > 0) {
           let items = result.split('\n');
@@ -92,15 +116,20 @@ export default class PredictScreen extends React.Component {
           /*if(lastdayprice.split('.').length  == 2 && lastdayprice.split('.')[1].length > 2) {
             lastdayprice = lastdayprice.substring(0,lastdayprice.length - 2);
           }*/
+          let date = new Date();
+          let hours = date.getHours();
+          hours = hours > 9 ? hours :'0' + hours
+          let minutes = date.getMinutes();
+          minutes = minutes > 9 ? minutes :'0' + minutes
           this.setState({
-            lastday:showdate + this.name,
+            lastday:showdate + " " + hours + ":" + minutes + "  ",
             lastdayprice:lastdayprice
           })
           if(result.length > 1) {
             let secondlastdayresult = items[items.length - 2];
             let secondlastdayresultitems = secondlastdayresult.split(",");
             let lastdayups = ((lastdayresultitems[2] - secondlastdayresultitems[2]) / secondlastdayresultitems[2] * 100).toFixed(2)
-            console.log(lastdayups)
+            //console.log(lastdayups)
             this.setState({
               lastdayups:lastdayups
             })
@@ -188,7 +217,7 @@ export default class PredictScreen extends React.Component {
   loadUserPredictsList = async() => {
     try {
       const result = await Request.post('getPredicts',{
-        predictid:this.props.navigation.getParam('predict').id
+        predictid:this.predict.id
       });
       if(result.code == 1) {
         this.setState({
@@ -201,22 +230,22 @@ export default class PredictScreen extends React.Component {
   }
 
   componentWillMount = async() => {
-    this.loadUserPredictsList();
+    
     const user = await AsyncStorage.getItem('user');
     if(user != null && user != '') {
       const json = JSON.parse(user);
       this.setState({user:json})
     }
-    
+   
     await this.loadPredict();
-
-    if(this.predict.title.indexOf('上证指数') >= 0) {
+    this.loadUserPredictsList();
+    if(this.predict.dir == 21) {
       this.code = "000001.XSHG"
       this.name = '上证指数 '
-    } else if(this.predict.title.indexOf('深证指数') >= 0) {
+    } else if(this.predict.dir == 24) {
       this.code = "399001.XSHE"
       this.name = '深证指数 '
-    } else if(this.predict.title.indexOf('创业板指') >= 0) {
+    } else if(this.predict.dir == 28) {
       this.code = "399006.XSHE"
       this.name = '创业板指 '
     }
@@ -251,6 +280,13 @@ export default class PredictScreen extends React.Component {
         userpredict:this.userpredict,
         choosepredicttext:choosepredicttext
       })
+      if(this.userpredict) {
+          let selects = [0,0,0,0,0];
+          selects[this.userpredict.option - 1] = 1;
+          this.setState({
+            selects:selects
+          })
+      }
 
       let nowtime = new Date().getTime();
       let end = this.getDatetime(this.predict.enddatetime);
@@ -261,6 +297,9 @@ export default class PredictScreen extends React.Component {
         over:1
       })
       } else {
+        this.setState({
+          over:0
+        })
       /*let hours = Math.floor(lefttotalseconds / (3600 * 1000));
       hours = hours > 9 ? hours :'0' + hours
       // 分
@@ -282,7 +321,8 @@ export default class PredictScreen extends React.Component {
     try {
       const result = await Request.post('loadPredict',{
         userid:!!this.state.user?this.state.user.id:'',
-        dir:this.dir.id
+        dir:this.dir.id,
+        type:this.state.predicttype
       });
       if(result.code == 1) {
         this.predict = result.data.predict;
@@ -297,14 +337,15 @@ export default class PredictScreen extends React.Component {
   }
 
   componentWillUnmount() {
-
     this.stockval && clearTimeout(this.stockval);
-
     if(this.props.navigation.state.params.refresh) {
-      this.props.navigation.state.params.refresh(this.predict,this.userpredict);
+      this.props.navigation.state.params.refresh();
     }
   }
   selectchange = (index) => {
+    if(this.state.over) {
+      return;
+    }
     if(this.userpredict) {
       return;
     }
@@ -344,7 +385,7 @@ export default class PredictScreen extends React.Component {
       return;
     }
     if(!this.state.user) {
-      Alert.alert('请先登录') //需要做统一处理
+      Alert.alert('您尚未登录') //需要做统一处理
       return;
     }
     
@@ -364,7 +405,10 @@ export default class PredictScreen extends React.Component {
         option:this.chooseoption,
         silver:predictsilver
       });
-      if(result.code == -2) {
+      if(result.code == -4) {
+        Alert.alert('您已经被封禁') //需要做统一处理
+        return;
+      } else if(result.code == -2) {
         Alert.alert('银币不足啦') //需要做统一处理
         AsyncStorage.setItem('user', JSON.stringify(result.data), function (error) {})
         this.setState({
@@ -373,7 +417,7 @@ export default class PredictScreen extends React.Component {
         })
         this.addflag = false;
         return;
-      } if(result.code == -3) {
+      } else if(result.code == -3) {
         Alert.alert('预测已经结束啦') //需要做统一处理
         this.setState({
           predict:result.data
@@ -433,6 +477,21 @@ export default class PredictScreen extends React.Component {
 
   }
 
+  changetype =(type)=> {
+    if(this.state.predicttype == type) {
+      return;
+    }
+    this.setState({
+      predicttype:type
+    },()=> {
+      this.stockval && clearTimeout(this.stockval);
+      this.componentWillMount();
+      this.getStock();
+    })
+    
+    
+  }
+
   render() {
   
     return (
@@ -441,7 +500,7 @@ export default class PredictScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title='数字海' isLeftTitle={false} />
+      <Header title={this.dirname} isLeftTitle={false} />
       {this.state.predict &&
       <ScrollView style={{flex:1}}>
       <View style={{alignItems:"center",paddingHorizontal:15,paddingTop:15,paddingBottom:15,backgroundColor:'white',marginTop:7,borderBottomColor:'#e1e1e1',borderBottomWidth:0.5}}>
@@ -454,8 +513,27 @@ export default class PredictScreen extends React.Component {
         }
 
         <Text ellipsizeMode='tail' style={{maxWidth:width - 20,marginTop:10,fontWeight:'bold',color:'black',fontSize:17,lineHeight:21}} numberOfLines={2}>{this.state.predict.title}</Text>
-        {this.state.over == 0 && !this.state.userpredict &&  
-        <View style={{marginTop:10,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>{'您还未预测哦，截止' + this.endtext}</Text>
+        
+        <View style={{flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('日线')}}>
+          <Text style={[this.state.predicttype =='日线'?{color:Colors.TextColor}:{color:"black"},{fontSize:13}]}>日线</Text>
+        </TouchableOpacity>
+        <View>
+          <Text style={{fontSize:10}}>/</Text>
+        </View>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('周线')}}>
+          <Text style={[this.state.predicttype =='周线'?{color:Colors.TextColor}:{color:"black"},{fontSize:13}]} >周线</Text>
+        </TouchableOpacity>
+        <View>
+          <Text style={{fontSize:10}}>/</Text>
+        </View>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('月线')}}>
+          <Text style={[this.state.predicttype =='月线'?{color:Colors.TextColor}:{color:"black"},{fontSize:13}]} >月线</Text>
+        </TouchableOpacity>
+        </View>
+
+        {this.state.over == 0 && !this.state.userpredict &&
+        <View style={{marginTop:0,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>{'您还未预测哦，截止' + this.endtext}</Text>
          
          {false &&
           <View>
@@ -475,67 +553,67 @@ export default class PredictScreen extends React.Component {
         </View>
         }
         {this.state.over == 1 &&
-          <View style={{marginTop:10,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>今日预测已结束 </Text></View>
+          <View style={{marginTop:0,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>预测已结束 </Text></View>
         }
         <View style={{position:'relative',width:this.predictTablewidth,height:this.predictTabHeight}}>
           <Image resizeMode='stretch' style={{display:'none',width:this.predictTablewidth,height:this.predictTabHeight}} source={this.u737}></Image>
-          <View style={{position:'absolute',marginTop:10,backgroundColor:'rgba(255,255,255,0.5)',width:this.predictTablewidth,height:this.predictTabHeight}}>
-            <View style={styles.tablewrap}>
+          <View style={{position:'absolute',marginTop:0,backgroundColor:'rgba(255,255,255,0.5)',width:this.predictTablewidth,height:this.predictTabHeight}}>
+            <TouchableOpacity onPress={()=>{this.selectchange(0)}} style={styles.tablewrap}>
               <View style={styles.tabletextwrap}><Text style={styles.font12}>{this.state.predict.option1}</Text></View>
               <View style={styles.tablecontentwrap}>
                 <View style={[styles.progressbar,styles.font12,{width:this.op1rate*this.rate,backgroundColor:this.colors[0]}]}></View>
                 <Text style={styles.progresstext}>{this.state.predict.option1value + '银币'}</Text>
               </View>
-              <TouchableOpacity onPress={()=>{this.selectchange(0)}} style={this.state.selects[0] == 0?styles.unselectwrap:styles.selectwrap}>
+              <View  style={this.state.selects[0] == 0?styles.unselectwrap:styles.selectwrap}>
                 <View style={this.state.selects[0] == 0?styles.unselectinner:styles.selectinner}></View>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tablewrap}>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>{this.selectchange(1)}}  style={styles.tablewrap}>
             <View style={styles.tabletextwrap}><Text style={styles.font12}>{this.state.predict.option2}</Text></View>
               <View style={styles.tablecontentwrap}>
                 <View style={[styles.progressbar,styles.font12,{width:this.op2rate*this.rate,backgroundColor:this.colors[1]}]}></View>
                 <Text style={styles.progresstext}>{this.state.predict.option2value + '银币'}</Text>
               </View>
-              <TouchableOpacity onPress={()=>{this.selectchange(1)}} style={this.state.selects[1] == 0?styles.unselectwrap:styles.selectwrap}>
+              <View style={this.state.selects[1] == 0?styles.unselectwrap:styles.selectwrap}>
                 <View style={this.state.selects[1] == 0?styles.unselectinner:styles.selectinner}></View>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tablewrap}>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>{this.selectchange(2)}}  style={styles.tablewrap}>
             <View style={styles.tabletextwrap}><Text style={styles.font12}>{this.state.predict.option3}</Text></View>
               <View style={styles.tablecontentwrap}>
                 <View style={[styles.progressbar,styles.font12,{width:this.op3rate*this.rate,backgroundColor:this.colors[2]}]}></View>
                 <Text style={styles.progresstext}>{this.state.predict.option3value + '银币'}</Text>
               </View>
-              <TouchableOpacity onPress={()=>{this.selectchange(2)}} style={this.state.selects[2] == 0?styles.unselectwrap:styles.selectwrap}>
+              <View style={this.state.selects[2] == 0?styles.unselectwrap:styles.selectwrap}>
                 <View style={this.state.selects[2] == 0?styles.unselectinner:styles.selectinner}></View>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tablewrap}>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>{this.selectchange(3)}}  style={styles.tablewrap}>
             <View style={styles.tabletextwrap}><Text style={styles.font12}>{this.state.predict.option4}</Text></View>
               <View style={styles.tablecontentwrap}>
                 <View style={[styles.progressbar,styles.font12,{width:this.op4rate*this.rate,backgroundColor:this.colors[3]}]}></View>
                 <Text style={styles.progresstext}>{this.state.predict.option4value + '银币'}</Text>
               </View>
-              <TouchableOpacity onPress={()=>{this.selectchange(3)}} style={this.state.selects[3] == 0?styles.unselectwrap:styles.selectwrap}>
+              <View style={this.state.selects[3] == 0?styles.unselectwrap:styles.selectwrap}>
                 <View style={this.state.selects[3] == 0?styles.unselectinner:styles.selectinner}></View>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.tablewrap}>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={()=>{this.selectchange(4)}} style={styles.tablewrap}>
             <View style={styles.tabletextwrap}><Text style={styles.font12}>{this.state.predict.option5}</Text></View>
               <View style={styles.tablecontentwrap}>
                 <View style={[styles.progressbar,styles.font12,{width:this.op5rate*this.rate,backgroundColor:this.colors[4]}]}></View>
                 <Text style={styles.progresstext}>{this.state.predict.option5value + '银币'}</Text>
               </View>
-              <TouchableOpacity onPress={()=>{this.selectchange(4)}} style={this.state.selects[4] == 0?styles.unselectwrap:styles.selectwrap}>
+              <View style={this.state.selects[4] == 0?styles.unselectwrap:styles.selectwrap}>
                 <View style={this.state.selects[4] == 0?styles.unselectinner:styles.selectinner}></View>
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
 
         {!this.state.userpredict && this.state.over == 0 && //未预测、未结束 显示去预测
-        <View style={{width:'100%',marginTop:5,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
+        <View style={{width:'100%',marginTop:10,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
           <Text style={{fontSize:12,color:Colors.sTextColor}}>当前奖池<Text style={{color:Colors.TextColor,fontSize:16}}>{this.total}</Text>银币</Text>
           <TouchableOpacity onPress={()=>{this.setState({predictContent:true})}} style={{marginLeft:10,borderRadius:5,backgroundColor:Colors.TextColor,paddingVertical:8,paddingHorizontal:20}}>
             <Text style={{color:'white',fontWeight:'bold'}}>预测</Text>
@@ -547,7 +625,7 @@ export default class PredictScreen extends React.Component {
         }
         {
           this.state.userpredict && //已预测
-          <View style={{width:'100%',marginTop:5,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
+          <View style={{width:'100%',marginTop:10,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
           <Text style={{fontSize:12,color:Colors.sTextColor}}>
           您已预测<Text style={{color:Colors.TextColor,fontSize:15}}>{" " + this.userpredicttext}</Text>
             {this.userpredict.state == 1 && <Text>{'，' + this.settletext}</Text>}
@@ -588,12 +666,12 @@ export default class PredictScreen extends React.Component {
           <TouchableWithoutFeedback>
           
           <View style={{paddingTop:30,paddingBottom:15,alignItems:'center',justifyContent:"center",width:'100%',backgroundColor:Colors.TextColor}}>
-            <Text style={{fontSize:16,color:'white',fontWeight:"bold"}}>预测今日将会 <Text style={{color:this.state.choosepredictcolor}}>{this.state.choosepredicttext}</Text></Text>
+            <Text style={{fontSize:16,color:'white',fontWeight:"bold"}}>预测将会 <Text style={{color:this.state.choosepredictcolor}}>{this.state.choosepredicttext}</Text></Text>
             {this.state.user && this.state.usersilvershow &&
             <Text style={{color:'white',fontSize:12,marginTop:5,fontWeight:"bold"}}>我的银币 : {this.state.user.silver}</Text>
             }
             <View style={{borderTopColor:'#eee',marginTop:10,paddingTop:10,borderTopWidth:0.5,width:'80%'}}>
-              <Text style={{fontSize:11,color:'#eee',marginBottom:7}}>选择预测银币</Text>
+              <Text style={{fontSize:13,color:'#eee',marginBottom:7}}>选择预测银币</Text>
               <View style={{flexDirection:'row',justifyContent:"space-between"}}>
                 <TouchableOpacity onPress={()=> this.silverschange(0)} style={this.state.choosesilverindex == 0?styles.points_sel:styles.points_un}>
                   <Text style={this.state.choosesilverindex == 0?styles.pointstext_sel:styles.pointstext_un}>{this.state.silvers[0]}</Text>
@@ -727,7 +805,7 @@ const styles = StyleSheet.create({
     fontSize:13
   },
   progressbar:{
-    height:17,
+    height:18,
     borderRadius:14
    },
    progresstext:{

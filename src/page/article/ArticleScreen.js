@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { DeviceEventEmitter,PixelRatio,TextInput,Image,FlatList,findNodeHandle,UIManager,StatusBar,NativeModules,Keyboard,View,StyleSheet,Platform,Text,Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
+import { DeviceEventEmitter,Modal,TextInput,Image,FlatList,findNodeHandle,UIManager,StatusBar,NativeModules,Keyboard,View,StyleSheet,Platform,Text,Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
@@ -21,7 +21,7 @@ import AntDesign from 'react-native-vector-icons/AntDesign';
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather'
-
+import {WToast,WSnackBar,WModal} from 'react-native-smart-tip'
 import Sound from 'react-native-sound';
 
 const { StatusBarManager } = NativeModules;
@@ -30,10 +30,11 @@ const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
 
 import {Colors} from '../../constants/iColors';
 
-let font = (width / 37.5)
+/*let font = (width / 37.5)
 if(PixelRatio.get() >= 3) {
       font = font * PixelRatio.get() / 2.5
-}
+}*/
+let font = (width / 30)
 
 export default class ArticleScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
@@ -45,6 +46,12 @@ export default class ArticleScreen extends React.Component {
     super(props);
     this.pickimage = false;
     this.article = props.navigation.getParam('article');
+
+    this.pushuserid = this.props.navigation.getParam('pushuserid')
+    if(!this.pushuserid) {
+      this.pushuserid = -1;
+    }
+
     this.upeddata = null;
     
     this.sound = null;
@@ -61,10 +68,11 @@ export default class ArticleScreen extends React.Component {
     this.myUpedcomments = {};
 
     this.flatlistpageY = null;
+    this.scrollY = 0;
     this.state = {
       audioPlayBg:this.audioPlayBgs[2],
 
-      articlecontent:null,
+      articlecontent:'',
       article:this.article,
       keyboardHeight:new Animated.Value(0),
       writefocus:false,
@@ -74,8 +82,14 @@ export default class ArticleScreen extends React.Component {
       commentcontent:'',
       user:null,
       uplist:{},
-      uped:false
+      uped:false,
+      reportVisible:false,
+      sort:'最热',
+      upcount:this.article.up,
     }
+
+    this.reportcommentid = -1;
+    this.reportCommentList = {}
   }
 
   stop = () => {
@@ -146,7 +160,7 @@ export default class ArticleScreen extends React.Component {
   renderNode(node, index, siblings, parent, defaultRenderer) {
     if (node.name == 'h3') {
       return (
-        <View style={{display:'flex',flexDirection:'row',alignItems:'center',borderLeftWidth:0.3*font,borderLeftColor:"#e1e1e1",paddingLeft:font*0.8, marginBottom:font* 1.5,fontSize:1.5*font}}>
+        <View style={{display:'flex',flexDirection:'column',borderLeftWidth:0.3*font,borderLeftColor:"red",paddingLeft:font*0.8, marginBottom:font* 1.5,fontSize:1.5*font}}>
           {defaultRenderer(node.children, node)}
         </View>
       );
@@ -166,6 +180,7 @@ export default class ArticleScreen extends React.Component {
   }
 
   componentWillMount() {
+    
     this.keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', this._keyboardWillShow);
     this.keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', this._keyboardWillHide);
 
@@ -190,15 +205,20 @@ export default class ArticleScreen extends React.Component {
   }
 
   componentDidMount = async() => {
-    if(this.article.category == 1) {
-      this.getContent();
-    }
     //this.addView(); addView 放到getcontent里一并执行
     const user = await AsyncStorage.getItem('user');
     if(user != null && user != '') {
       const json = JSON.parse(user);
       this.setState({user:json})
     }
+    if(this.article.category == 1) {
+      this.getContent();
+    }
+    const reportCommentListstr = await AsyncStorage.getItem('reportCommentList');
+    if(reportCommentListstr) {
+      this.reportCommentList = JSON.parse(reportCommentListstr)
+    }
+
     this.getUped();
   }
 
@@ -215,6 +235,60 @@ export default class ArticleScreen extends React.Component {
       this.getComment();
     }
   }*/
+
+  report2 = (commentid,title,publishuserid) => {
+    this.reportcommenttitle = title;
+    this.reportcommentid = commentid;
+    this.publishuserid = publishuserid;
+    this.setState({
+      reportVisible:true
+    })
+  }
+
+  reportComment = async(text) => {
+    this.reportCommentList[this.reportcommentid] = 1;
+    AsyncStorage.setItem('reportCommentList', JSON.stringify(this.reportCommentList), function (error) {})
+
+    try {
+      const result = await Request.post('addReport',{
+        userid:!!this.state.user?this.state.user.id:'', //举报人
+        text:text,
+        objid:this.reportcommentid,
+        type:2,
+        publishuserid:this.publishuserid,
+        title:this.reportcommenttitle
+      });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
+      if(result.code == 1) {
+        let commentList = this.state.commentList;
+        for(let i = 0;i < commentList.length;i++) {
+          if(commentList[i].id == this.reportcommentid) {
+            commentList.splice(i,1);
+            break;
+          }
+        }
+        this.setState({
+          reportVisible:false,
+          commentList:commentList
+        },()=> {
+          const toastOpts = {
+            data: '感谢您的举报,我们会尽快处理',
+            textColor: '#ffffff',
+            backgroundColor: Colors.TextColor,
+            duration: 1000, //1.SHORT 2.LONG
+            position: WToast.position.TOP, // 1.TOP 2.CENTER 3.BOTTOM
+          }
+          WToast.show(toastOpts)
+        })
+        
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   getUped = async() => {
     if(this.state.user == null) {
@@ -263,7 +337,7 @@ export default class ArticleScreen extends React.Component {
 
   addUp = async(type,objid) => {
     if(this.state.user == null) {
-      Alert.alert('请先登录') //需要做统一处理
+      Alert.alert('您尚未登录') //需要做统一处理
       return;
     }
 
@@ -273,11 +347,16 @@ export default class ArticleScreen extends React.Component {
         type:type,
         objid:objid
       });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       
         this.myUpedarticles[objid] = 1
         AsyncStorage.setItem('myUpedarticles_' + this.state.user.id, JSON.stringify(this.myUpedarticles), function (error) {})
         this.setState({
-          uped:true
+          uped:true,
+          upcount:this.state.upcount+1
         })
       
     } catch (error) {
@@ -287,7 +366,7 @@ export default class ArticleScreen extends React.Component {
 
   delUp = async(type,objid) => {
     if(this.state.user == null) {
-      Alert.alert('请先登录') //需要做统一处理
+      Alert.alert('您尚未登录') //需要做统一处理
       return;
     }
 
@@ -295,12 +374,17 @@ export default class ArticleScreen extends React.Component {
       const result = await Request.post('delUp',{
         userid:this.state.user.id,
         type:type,
-        objid:objid
+        objid:objid,
       });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       this.myUpedarticles[objid] = -1
       AsyncStorage.setItem('myUpedarticles_' + this.state.user.id, JSON.stringify(this.myUpedarticles), function (error) {})
       this.setState({
-        uped:false
+        uped:false,
+        upcount:this.state.upcount-1
       })
     } catch (error) {
       console.log(error)
@@ -323,24 +407,20 @@ export default class ArticleScreen extends React.Component {
   
 
   scrollToFlatlist =()=> {
-    
+    console.log(this.scrollY)
       let that = this;
-      if(that.flatlistpageY) {
-        that.scrollview.scrollTo({ x: 0, y: that.flatlistpageY, animated: true });
-      } else {
         const handle = findNodeHandle(this.flatlist)
         UIManager.measure(handle,(x, y, width, height, pageX, pageY)=>{
-          console.log(pageY)
-          that.flatlistpageY = pageY
-          that.scrollview.scrollTo({ x: 0, y: pageY, animated: true });
+          that.flatlistpageY = pageY + this.scrollY - 200
+          console.log(that.flatlistpageY)
+          that.scrollview.scrollTo({ x: 0, y: that.flatlistpageY, animated: true });
         });
-      }
     
   }
 
   addComment= async() => {
     if(this.state.user == null) {
-      Alert.alert('请先登录')
+      Alert.alert('您尚未登录')
       return;
     }
 
@@ -356,7 +436,7 @@ export default class ArticleScreen extends React.Component {
         articleid:this.article.id, 
         pic:urluploadpath
       });
-      if(result.code != -1) {
+      if(result.code > 0) {
         let commentList = this.state.commentList
         let comment = result.data
 
@@ -381,6 +461,11 @@ export default class ArticleScreen extends React.Component {
         },()=>{
           that.scrollToFlatlist();
         })
+      } else if(result.code == -2) {
+        Alert.alert('您已被封禁')
+      } else if(result.code == -3) {
+        Alert.alert('请勿发表包含辱骂、色情、暴恐、涉政等违法信息')
+        return;
       }
     } catch (error) {
       
@@ -390,17 +475,37 @@ export default class ArticleScreen extends React.Component {
   getComment = async() => {
     try {
       const result = await Request.post('comments',{
-        articleid:this.article.id
+        articleid:this.article.id,
+        sort:this.state.sort
       });
       
       if(result.code == 1) {
+        let commentList = []
+        for(let i = 0;i < result.data.length;i++) {
+          if(this.reportCommentList[result.data[i].id] == 1) {
+            continue;
+          }
+          commentList.push(result.data[i])
+        }
          this.setState({
-          commentList:result.data
+          commentList:commentList
          })
       }
     } catch (error) {
       
     }
+  }
+
+  changeSort = async(sort) => {
+    if(sort == this.state.sort) {
+      return;
+    }
+    this.setState({
+      sort:sort
+    },async() => {
+      this.getComment();
+    })
+    
   }
 
   onDelComment = (commentid) => {
@@ -421,7 +526,11 @@ export default class ArticleScreen extends React.Component {
       const result = await Request.post('getArticleContent',{
         contentid:this.article.content,
         articleid:this.article.id,
-        userid:this.state.user?this.state.user.id : '',
+        articletitle:this.article.title,
+        userid:this.state.user?this.state.user.id : '-1', //未登录
+        username:this.state.user?this.state.user.name : '', //未登录
+        articleuserid:this.article.userid,
+        pushuserid:this.pushuserid
       });
       if(result.code == 1) {
          this.setState({
@@ -486,9 +595,13 @@ export default class ArticleScreen extends React.Component {
       }
       this.props.navigation.navigate('RewardScreen',{article:this.article,type:1,user:this.state.user});
     } else {
-      Alert.alert('请先登录')
+      Alert.alert('您尚未登录')
       return;
     }
+  }
+
+  report=()=> {
+
   }
 
   render() {
@@ -510,20 +623,24 @@ export default class ArticleScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title='数字海' isLeftTitle={false} />
+      <Header title={this.article.dirname} isLeftTitle={false} />
       <ScrollView 
         ref={(scrollview) => {
           this.scrollview = scrollview
         }}
+        onScroll = {(event)=>{{
+          this.scrollY = event.nativeEvent.contentOffset.y;//垂直滚动距离 
+        }}}
+        scrollEventThrottle = {200}
         style={{flex:1}}>
         <View style={{paddingHorizontal:15}}>
         <View style={{marginTop:20}}>
-        <Text style={{fontSize:18,fontWeight:'bold',color:'#222',lineHeight:22}}>{this.state.article.title}</Text>
+        <Text style={{fontSize:20,fontWeight:'bold',color:'#222',lineHeight:22}}>{this.state.article.title}</Text>
         </View>
 
         {this.article.level != 0 &&
         <TouchableOpacity onPress={this.goPerson} style={{marginTop:20,display:'flex',flexDirection:'row',height:36,alignItems:"center"}}>
-          <Image style={{width:36,height:36,borderRadius:5}} source={{uri:baseimgurl+this.state.article.avatarUrl}}></Image>
+          <Image style={{width:38,height:38,borderRadius:19}} source={{uri:baseimgurl+this.state.article.avatarUrl}}></Image>
           <View style={{flex:1,marginLeft:10,height:36,justifyContent:'space-between'}}>
             <Text style={{fontSize:14,color:Colors.TextColor,marginBottom:5,fontWeight:"bold"}}>{this.state.article.username}</Text>
             <Datetime style={{fontSize:12,color:Colors.GreyColor}} datetime={this.state.article.createdate}></Datetime>
@@ -570,11 +687,27 @@ export default class ArticleScreen extends React.Component {
 						domStorageEnabled={true}
 						scrollEnabled={false}
 						onMessage={(event)=>{
-							console.log(event.nativeEvent.data )
               this.setState({height: +event.nativeEvent.data})
 						}}
         />
         }
+
+        <Text style={{marginTop:10,fontSize:13,color:Colors.GreyColor}}>
+          <Text style={{fontSize:13,color:Colors.GreyColor}}>{this.state.article.view} 阅读</Text>
+        </Text>
+            
+        </View>
+
+        <View style={{marginTop:20,flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:25}} onPress={()=> {this.changeSort('最热')}}>
+          <Text style={[this.state.sort =='最热'?{color:Colors.TextColor}:{color:"black"},{fontSize:15}]}>最热</Text>
+        </TouchableOpacity>
+        <View>
+          <Text style={{fontSize:10}}>/</Text>
+        </View>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:25}} onPress={()=> {this.changeSort('最新')}}>
+          <Text style={[this.state.sort =='最新'?{color:Colors.TextColor}:{color:"black"},{fontSize:15}]} >最新</Text>
+        </TouchableOpacity>
         </View>
 
         {this.state.commentList.length == 0 &&
@@ -592,7 +725,7 @@ export default class ArticleScreen extends React.Component {
               renderItem={
                 ({ item }) => {
                   return(
-                    <ComentinArticle onDelComment={this.onDelComment} myUpedcomments={this.myUpedcomments} user={this.state.user} comment={item} article={this.article}></ComentinArticle>
+                    <ComentinArticle report={this.report2} onDelComment={this.onDelComment} myUpedcomments={this.myUpedcomments} user={this.state.user} comment={item} article={this.article}></ComentinArticle>
                   )
                 }
               }
@@ -615,11 +748,7 @@ export default class ArticleScreen extends React.Component {
         <TouchableOpacity onPress={()=>{this.scrollToFlatlist()}} style={{alignItems:'center'}}>
           <Feather name='message-square' size={26} color={'black'}/>
         </TouchableOpacity>
-        {this.article.level != 0 &&
-        <TouchableOpacity onPress={this.rewardArticle} style={{marginLeft:20,marginTop:-2,alignItems:'center'}}>
-          <AntDesign name='gift' size={26} color={'#fc0d1b'}/>
-        </TouchableOpacity>
-        }
+        
         {!this.state.uped &&
         <TouchableOpacity onPress={()=>this.addUp(1,this.article.id)} style={{marginLeft:20,alignItems:'center'}}>
           <MaterialCommunityIcons name='thumb-up-outline' size={26} color={'black'}/>
@@ -630,12 +759,18 @@ export default class ArticleScreen extends React.Component {
           <MaterialCommunityIcons name='thumb-up' size={26} color={Colors.TextColor}/>
         </TouchableOpacity>
         }
-        <TouchableOpacity onPress={()=> {this.props.navigation.navigate('PushScreen',{article:this.article})}} style={{marginLeft:20,alignItems:'center'}}>
+        <TouchableOpacity onPress={()=> {this.props.navigation.navigate('PushScreen',{article:this.article,pushuserid:this.pushuserid})}} style={{marginLeft:20,alignItems:'center'}}>
           <Image source={push} resizeMode='stretch' style={{width:26,height:26}}></Image>
+          <Text style={{display:'none',fontWeight:'bold',fontSize:0,color:"#000"}}>推</Text>
         </TouchableOpacity>
         {this.state.commentList.length > 0 && 
-        <View style={{position:'absolute',left:13,top:0,height:14,width:14,backgroundColor:'#fc0d1b',borderRadius:14,justifyContent:'center',alignItems:'center'}}>
+        <TouchableOpacity onPress={()=>{this.scrollToFlatlist()}} style={{position:'absolute',left:13,top:0,height:14,width:14,backgroundColor:'#fc0d1b',borderRadius:14,justifyContent:'center',alignItems:'center'}}>
           <Text style={{fontSize:10,color:'white'}}>{this.state.commentList.length}</Text>
+        </TouchableOpacity>
+        }
+        {this.state.upcount > 0 && 
+        <View style={{position:'absolute',left:70,top:0,height:14,width:14,justifyContent:'center',alignItems:'center'}}>
+          <Text style={{fontSize:10,color:'black'}}>{this.state.upcount}</Text>
         </View>
         }
       </View>
@@ -685,6 +820,53 @@ export default class ArticleScreen extends React.Component {
         
       
         {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
+
+
+
+
+        <Modal
+          animationType={"fade"}
+          transparent={true}
+          visible={this.state.reportVisible}
+        >
+       <TouchableWithoutFeedback onPress={() => {this.setState({reportVisible:false})}}>
+          <View style={[this.props.style,{top:0,left:0,backgroundColor:'rgba(0,0,0,0.4)',zIndex:9999,width:width,height:height,alignItems:'center',justifyContent:"center"}]}>
+            <View style={{width:width - 80,borderRadius:5,backgroundColor:"white"}}>
+            <TouchableWithoutFeedback>
+            <View style={{paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1',alignItems:'center',justifyContent:'center',flexDirection:'row'}}>
+              <AntDesign name='warning' size={16} color={'black'}/>
+              <Text style={{marginLeft:5,color:'black',fontSize:15,fontWeight:'bold',textAlign:'center'}}>举报</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportComment('低俗色情')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>低俗色情</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportComment('虚假欺诈')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>虚假欺诈</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportComment('暴恐涉政')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>暴恐涉政</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportComment('涉及违禁品')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>涉及违禁品</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+        </Modal>
       </View>
     );
   }

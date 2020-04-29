@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {Alert,TextInput,Image,FlatList,StatusBar,NativeModules,View,StyleSheet,Platform,Text,Keyboard,Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated} from 'react-native';
+import {Alert,TextInput,Image,FlatList,StatusBar,NativeModules,View,StyleSheet,Platform,Text,Keyboard,Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated,Modal} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
@@ -15,7 +15,8 @@ import ReplyinComment from '../../components/ReplyinComment';
 import FocusBtn from '../../components/FocusBtn';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
 import { baseimgurl } from '../../utils/Global';
-
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import {WToast,WSnackBar,WModal} from 'react-native-smart-tip'
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default class CommentScreen extends React.Component {
@@ -28,7 +29,7 @@ export default class CommentScreen extends React.Component {
     super(props);
     this.article = props.navigation.getParam('article');
     this.comment = props.navigation.getParam('comment');
-
+    this.myUpedcomments = {};
     this.myUpedreplys = {};
     this.state = {
       keyboardHeight:new Animated.Value(0),
@@ -36,36 +37,49 @@ export default class CommentScreen extends React.Component {
       replyList:[],
       user:null,
       commentuped:props.navigation.getParam('commentuped'),
-      replycontent:''
+      replycontent:'',
+      reportVisible:false
     }
+    this.reportReplyList = {}
   }
   
 
   
 
   componentWillMount() {
+    //AsyncStorage.removeItem('reportReplyList');
     this.keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', this._keyboardWillShow);
     this.keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', this._keyboardWillHide);
   }
 
   componentDidMount = async() => {
+    const reportReplyListstr = await AsyncStorage.getItem('reportReplyList');
+    if(reportReplyListstr) {
+      this.reportReplyList = JSON.parse(reportReplyListstr)
+    }
+
     const user = await AsyncStorage.getItem('user');
     if(user != null && user != '') {
       const json = JSON.parse(user);
       this.setState({user:json},()=> {
         this.getUped();
       })
-    }  else {
+    } else {
+      this.getReplys();
     }
     
   }
 
   getUped = async() => {
+    const myUpedcommentsstr = await AsyncStorage.getItem('myUpedcomments_' + this.state.user.id);
+    if(myUpedcommentsstr != null) {
+      this.myUpedcomments = JSON.parse(myUpedcommentsstr);
+    }
     const myUpedreplysstr = await AsyncStorage.getItem('myUpedreplys_' + this.state.user.id);
     if(myUpedreplysstr != null) {
       this.myUpedreplys = JSON.parse(myUpedreplysstr);
-      this.getReplys();
     }
+    this.getReplys();
   }
 
   getReplys = async()=>{
@@ -75,8 +89,15 @@ export default class CommentScreen extends React.Component {
       });
       
       if(result.code == 1) {
+        let list = []
+          for(let i = 0;i < result.data.length;i++) {
+            if(this.reportReplyList[result.data[i].id] == 1) {
+              continue;
+            }
+            list.push(result.data[i])
+          }
          this.setState({
-          replyList:result.data
+          replyList:list
          })
       }
     } catch (error) {
@@ -114,7 +135,7 @@ export default class CommentScreen extends React.Component {
 
   addcommentUp = async(type,objid) => {
     if(this.state.user == null) {
-      Alert.alert('请先登录') //需要做统一处理
+      Alert.alert('您尚未登录') //需要做统一处理
       return;
     }
 
@@ -123,11 +144,20 @@ export default class CommentScreen extends React.Component {
         userid:this.state.user.id,
         type:type,
         objid:objid,
-        parentid:this.article.id
+        parentid:this.article.id,
+        commentcontent:this.comment.content,
+        commentuserid:this.comment.userid
       });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       this.setState({
         commentuped:true
       })
+      this.myUpedcomments[this.comment.id] = 1
+      AsyncStorage.setItem('myUpedcomments_' + this.state.user.id, JSON.stringify(this.myUpedcomments), function (error) {})
+      
     } catch (error) {
       
     }
@@ -135,7 +165,7 @@ export default class CommentScreen extends React.Component {
 
   delcommentUp = async(type,objid) => {
     if(this.state.user == null) {
-      Alert.alert('请先登录') //需要做统一处理
+      Alert.alert('您尚未登录') //需要做统一处理
       return;
     }
 
@@ -143,8 +173,16 @@ export default class CommentScreen extends React.Component {
       const result = await Request.post('delUp',{
         userid:this.state.user.id,
         type:type,
-        objid:objid
+        objid:objid,
+        commentcontent:this.comment.content,
+        commentuserid:this.comment.userid
       });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
+      this.myUpedcomments[this.comment.id] = -1
+      AsyncStorage.setItem('myUpedcomments_' + this.state.user.id, JSON.stringify(this.myUpedcomments), function (error) {})
       this.setState({
         commentuped:false
       })
@@ -156,9 +194,11 @@ export default class CommentScreen extends React.Component {
 
   addReply= async() => {
     if(this.state.user == null) {
-      Alert.alert('请先登录')
+      Alert.alert('您尚未登录')
       return;
     }
+
+    
     try {
       const result = await Request.post('addReply',{
         userid:this.state.user.id,
@@ -169,7 +209,7 @@ export default class CommentScreen extends React.Component {
         replyusername:this.state.replyTo == null ? '' : this.state.replyTo.username,
         replycontent:this.state.replyTo == null ? '' : this.state.replyTo.content,
       });
-      if(result.code != -1) {
+      if(result.code > 0) {
         let replyList = this.state.replyList
         let reply = result.data
 
@@ -191,6 +231,11 @@ export default class CommentScreen extends React.Component {
           replyList:replyList,
           writefocus:false
         })
+      } else if(result.code == -2) {
+        Alert.alert('您已被封禁')
+      } else if(result.code == -3) {
+        Alert.alert('请勿发表包含辱骂、色情、暴恐、涉政等违法信息')
+        return;
       }
     } catch (error) {
       
@@ -220,6 +265,61 @@ export default class CommentScreen extends React.Component {
     }
     this.props.navigation.navigate('PersonScreen',{personid:this.comment.userid})
   }
+
+  report=(replyid,title,publishuserid)=> {
+    this.reportreplytitle = title;
+    this.reportreplytid = replyid;
+    this.publishuserid = publishuserid;
+    this.setState({
+      reportVisible:true
+    })
+  }
+
+  reportReply = async(text) => {
+    this.reportReplyList[this.reportreplytid] = 1;
+    AsyncStorage.setItem('reportReplyList', JSON.stringify(this.reportReplyList), function (error) {})
+
+    try {
+      const result = await Request.post('addReport',{
+        userid:!!this.state.user?this.state.user.id:'', //举报人
+        text:text,
+        objid:this.reportreplytid,
+        type:3,
+        title:this.reportreplytitle,
+        publishuserid:this.publishuserid
+      });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
+      if(result.code == 1) {
+        let replyList = this.state.replyList;
+        for(let i = 0;i < replyList.length;i++) {
+          if(replyList[i].id == this.reportreplytid) {
+            replyList.splice(i,1);
+            break;
+          }
+        }
+        this.setState({
+          reportVisible:false,
+          replyList:replyList
+        },()=> {
+          const toastOpts = {
+            data: '感谢您的举报,我们会尽快处理',
+            textColor: '#ffffff',
+            backgroundColor: Colors.TextColor,
+            duration: 1000, //1.SHORT 2.LONG
+            position: WToast.position.TOP, // 1.TOP 2.CENTER 3.BOTTOM
+          }
+          WToast.show(toastOpts)
+        })
+        
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
   render() {
     let up = require('../../images/article/up1.png')
     let uped = require('../../images/article/up2.png')
@@ -238,9 +338,9 @@ export default class CommentScreen extends React.Component {
       <Header title={this.state.replyList.length + '条回复'} isLeftTitle={false} />
       <ScrollView style={{flex:1}}>
         <View>
-        <View style={{paddingHorizontal:15,flexDirection:'row',backgroundColor:'white',marginTop:10,borderBottomColor:'#f1f1f1',borderBottomWidth:0.5}}>
+        <View style={{paddingHorizontal:15,flexDirection:'row',backgroundColor:'white',marginTop:15,borderBottomColor:'#f1f1f1',borderBottomWidth:0.5}}>
         <TouchableOpacity onPress={this.goPerson} >
-          <Image style={{width:38,height:38,borderRadius:5,marginRight:10}} source={{uri:(baseimgurl + this.comment.avatarUrl)}}></Image>
+          <Image style={{width:38,height:38,borderRadius:19,marginRight:10}} source={{uri:(baseimgurl + this.comment.avatarUrl)}}></Image>
         </TouchableOpacity>
         <View style={{flex:1,flexDirection:'column',marginBottom:15}}>
         <TouchableOpacity onPress={this.goPerson} style={{display:'flex',flexDirection:'row',alignItems:"center"}}>
@@ -269,7 +369,7 @@ export default class CommentScreen extends React.Component {
               renderItem={
                 ({ item }) => {
                   return(
-                    <ReplyinComment onDelReply={this.onDelReply} reply={item} myUpedreplys={this.myUpedreplys} user={this.state.user} comment={this.comment} article={this.article} onReplyPress={this.replyPress}></ReplyinComment>
+                    <ReplyinComment report={this.report} onDelReply={this.onDelReply} reply={item} myUpedreplys={this.myUpedreplys} user={this.state.user} comment={this.comment} article={this.article} onReplyPress={this.replyPress}></ReplyinComment>
                   )
                 }
               }
@@ -334,6 +434,52 @@ export default class CommentScreen extends React.Component {
         
       
         {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
+
+
+
+        <Modal
+          animationType={"fade"}
+          transparent={true}
+          visible={this.state.reportVisible}
+        >
+       <TouchableWithoutFeedback onPress={() => {this.setState({reportVisible:false})}}>
+          <View style={[this.props.style,{top:0,left:0,backgroundColor:'rgba(0,0,0,0.4)',zIndex:9999,width:width,height:height,alignItems:'center',justifyContent:"center"}]}>
+            <View style={{width:width - 80,borderRadius:5,backgroundColor:"white"}}>
+            <TouchableWithoutFeedback>
+            <View style={{paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1',alignItems:'center',justifyContent:'center',flexDirection:'row'}}>
+              <AntDesign name='warning' size={16} color={'black'}/>
+              <Text style={{marginLeft:5,color:'black',fontSize:15,fontWeight:'bold',textAlign:'center'}}>举报</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportReply('低俗色情')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>低俗色情</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportReply('虚假欺诈')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>虚假欺诈</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportReply('暴恐涉政')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>暴恐涉政</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportReply('涉及违禁品')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>涉及违禁品</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+        </Modal>
       </View>
     );
   }

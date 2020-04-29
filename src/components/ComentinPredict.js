@@ -66,7 +66,7 @@ class ComentinPredict extends React.PureComponent {
     return (
       <View style={{flexDirection:'row',paddingVertical:15,backgroundColor:'white',marginTop:5,borderBottomColor:'#f1f1f1',borderBottomWidth:0.5}}>
         <TouchableOpacity onPress={this.goPerson}>
-          <Image style={{width:38,height:38,borderRadius:5,marginRight:10}} source={{uri:baseimgurl + this.userpredict.avatarUrl}}></Image>
+          <Image style={{width:38,height:38,borderRadius:19,marginRight:10}} source={{uri:baseimgurl + this.userpredict.avatarUrl}}></Image>
         </TouchableOpacity>
         <View style={{flex:1,flexDirection:'column'}}>
         <View style={{display:'flex',flexDirection:'row',alignItems:"center"}}>

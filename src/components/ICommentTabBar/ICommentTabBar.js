@@ -186,25 +186,11 @@ const ICommentTabBar = createReactClass({
         >
           <View style={{flexDirection:"row"}}>
           {this.props.tabs.map((name, page) => {
-            if(name == '推荐' || name == '关注' || name == '榜单') {
               const isTabActive = this.props.activeTab === page;
               const renderTab = this.props.renderTab || this.renderTab;
               return renderTab(name, page, isTabActive, this.props.goToPage, this.measureTab.bind(this, page));
-            }
-           
           })}
-        </View>
-        
-        <View style={{flexDirection:"row"}}>
-          {this.props.tabs.map((name, page) => {
-            if(name == '推荐' || name == '关注' || name == '榜单') {
-              return;
-            }
-            const isTabActive = this.props.activeTab === page;
-            const renderTab = this.props.renderTab || this.renderTab;
-            return renderTab(name, page, isTabActive, this.props.goToPage, this.measureTab.bind(this, page));
-          })}
-        </View>
+          </View>
         </View>
     </View>;
   },
@@ -236,22 +222,24 @@ module.exports = ICommentTabBar;
 
 const styles = StyleSheet.create({
   tab: {
-    height: 45,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     //paddingHorizontal:15
     width:60
   },
   container: {
-    height: 92,
+    justifyContent:'center',
+    height: 50,
     borderWidth: 1,
     borderTopWidth: 0,
     borderLeftWidth: 0,
     borderRightWidth: 0,
     borderColor: '#ccc',
-    paddingLeft:5,
+    paddingLeft:5
   },
   tabs: {
     flexDirection: 'column',
+    alignItems:'center'
   },
 });

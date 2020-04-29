@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 import { baseimgurl } from '../../utils/Global';
 import ThumbArticle from '../../components/ThumbArticle';
+import { TextInput } from 'react-native-gesture-handler';
 export default class PushScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -23,11 +24,16 @@ export default class PushScreen extends React.Component {
     super(props);
     this.flag = false;
     this.article = props.navigation.getParam('article');
+    this.pushuserid = props.navigation.getParam('pushuserid');
+    if(!this.pushuserid) {
+      this.pushuserid = -1;
+    }
     this.type = 1;
     this.coincount = 10;
     this.peoplecount = 10;
     this.state = {
       user:null,
+      pushcontent:'',
       coinshow:false,
       chooses:[{
         title:'10人',
@@ -78,7 +84,9 @@ export default class PushScreen extends React.Component {
         title:'500人',
         value:50,
         selected:false
-      }]
+      }],
+
+      tofans:0
     }
   }
 
@@ -140,7 +148,7 @@ export default class PushScreen extends React.Component {
       return;
     }
     if(!this.state.user) {
-      Alert.alert('请先登录')
+      Alert.alert('您尚未登录')
       return;
     }
       this.flag = true;
@@ -148,12 +156,22 @@ export default class PushScreen extends React.Component {
         const result = await Request.post('addPush',{
           userid:this.state.user.id,
           type:this.type,
-          articleid:this.article.id, 
+          articleid:this.article.id,
           coincount:this.coincount,
           peoplecount:this.peoplecount,
-          articletitle:this.article.title
+          articletitle:this.article.title,
+          pushuserid:this.pushuserid,
+          articleuserid:this.article.userid,
+          username:this.state.user.name,
+          content:this.state.pushcontent
         });
-        if(result.code == -2) {
+        if(result.code == -4) {
+          Alert.alert('您已被封禁')
+          return;
+        } else if(result.code == -3) {
+          Alert.alert('请勿发表包含辱骂、色情、暴恐、涉政等违法信息')
+          return;
+        } else if(result.code == -2) {
           AsyncStorage.setItem('user', JSON.stringify(result.data), function (error) {})
           this.setState({
             user:result.data,
@@ -181,7 +199,7 @@ export default class PushScreen extends React.Component {
           }
           this.flag = false;
           return;
-        } else if(result.code == 1) {
+        } else if(result.code > 0) {
           if(this.type == 1) {
             this.state.user.silver = this.state.user.silver - this.coincount;
           } else if(this.type == 2) {
@@ -219,6 +237,12 @@ export default class PushScreen extends React.Component {
       }
   }
   
+
+  toFansClick = () => {
+    this.setState({
+      tofans:this.state.tofans == 0?1:0
+    })
+  }
   
   render() {
    
@@ -230,7 +254,12 @@ export default class PushScreen extends React.Component {
       <Header title='推帖子' isLeftTitle={true}/>
       <ScrollView style={{backgroundColor:'white',paddingHorizontal:15,flex:1}}>
       
-      <View style={{flexDirection:'column',alignItems:"center",marginTop:30,paddingBottom:20}}>
+      <View style={{height:px(140),marginTop:20,marginLeft:5,width:width-40,paddingVertical:px(10),backgroundColor:"white"}}>
+          <TextInput value={this.state.pushcontent} onChangeText = {(pushcontent) => this.setState({pushcontent})} placeholder="这一刻的想法..." maxLength={50} multiline={true} underlineColorAndroid="transparent" ref={contentinput => this.contentinput = contentinput} 
+          style={{flex:1,textAlignVertical: 'top',fontSize:15}}/>
+      </View>
+
+      <View style={{flexDirection:'column',alignItems:"center",marginTop:5,paddingBottom:20}}>
         <ThumbArticle style={{width:width - 40}} article={this.article}></ThumbArticle>
       </View>
 
@@ -267,6 +296,15 @@ export default class PushScreen extends React.Component {
               )
             })}
         </View>
+
+        <TouchableOpacity onPress={this.toFansClick} style={{justifyContent:"flex-end",marginRight:10,marginTop:20,flexDirection:'row',alignItems:"center"}}>
+          <View style={this.state.tofans == 0 ?styles.unselectwrap:styles.selectwrap}>
+            <View style={this.state.tofans == 0 ?styles.unselectinner:styles.selectinner}></View>
+          </View>
+          <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>分享给粉丝</Text>
+        </TouchableOpacity>
+        
+
         <TouchableOpacity onPress={this.push} style={{width:width-40,marginTop:30,marginLeft:5,borderRadius:3,backgroundColor:'#017bd1',paddingVertical:12,alignItems:'center'}}>
               <Text style={{color:'white',fontWeight:'bold'}}>推送</Text>
         </TouchableOpacity>
@@ -274,7 +312,6 @@ export default class PushScreen extends React.Component {
         <View style={{marginTop:30,color:Colors.sTextColor,marginBottom:50}}>
             <Text style={{color:Colors.sTextColor}}>温馨提示：</Text>
             <Text style={{marginTop:10,color:Colors.sTextColor,lineHeight:20}}>1、1银币推1人，1金币推10人</Text>
-            
         </View>
       </ScrollView>
       </View>
@@ -293,5 +330,33 @@ const topStyles = StyleSheet.create({
     backgroundColor:'white',
     width: px(750),
     height: isIphoneX ? 44 : 20
+  },
+})
+
+const styles = StyleSheet.create({
+  unselectwrap:{
+    marginLeft:5,
+    borderWidth:1,
+    borderColor:"#999",
+    width:17,
+    height:17,
+    
+  },
+  selectwrap:{
+    marginLeft:5,
+    borderWidth:1,
+    borderColor:Colors.TextColor,
+    width:17,
+    height:17,
+    alignItems:'center',
+    justifyContent:"center"
+  },
+  unselectinner:{
+
+  },
+  selectinner:{
+    width:11,
+    height:11,
+    backgroundColor:Colors.TextColor
   },
 })

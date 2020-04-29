@@ -559,7 +559,6 @@ selectthirdDir=(item) => {
       y:2
     }
 
-    console.log(this.state.uploading)
     return (
       <View style={{height:height,flexDirection:'column',backgroundColor: 'white'}}>
 
@@ -579,7 +578,7 @@ selectthirdDir=(item) => {
           <TouchableWithoutFeedback>
           <View style={[this.state.thirddir?{width:100}:{width:100},{alignItems:'center',backgroundColor:"#f3f3f3"}]}>
             <TouchableOpacity onPress={() => this.selectfirstDir('财经')} style={{zIndex:999,marginTop:20,width:80,alignItems:'center',justifyContent:'center'}}><Text style={this.state.dir1 == '财经'?{color:'#017bd1'}:{color:'#333'}}>财经</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => this.selectfirstDir('体育')} style={{zIndex:999,marginTop:20,width:80,alignItems:'center',justifyContent:'center'}}><Text style={this.state.dir1 == '体育'?{color:'#017bd1'}:{color:'#333'}}>体育</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => this.selectfirstDir('体育')} style={{display:'none',zIndex:999,marginTop:20,width:80,alignItems:'center',justifyContent:'center'}}><Text style={this.state.dir1 == '体育'?{color:'#017bd1'}:{color:'#333'}}>体育</Text></TouchableOpacity>
           </View>
           </TouchableWithoutFeedback>
 
@@ -632,7 +631,7 @@ selectthirdDir=(item) => {
         </TouchableOpacity>
       </View>
       <View>
-        <TextInput value={this.state.title} onChangeText = {(title) => this.setState({title})} placeholder="请输入标题" style={{marginTop:20,height:50,width:width - 30,marginLeft:15,fontSize:20,fontWeight: 'bold',borderBottomColor:'#fc431d',borderBottomWidth:2}}>
+        <TextInput value={this.state.title} onChangeText = {(title) => this.setState({title})} placeholder="请输入标题" style={{marginTop:20,height:50,width:width - 30,marginLeft:15,fontSize:20,fontWeight: 'bold',color:'#222',borderBottomColor:'#fc431d',borderBottomWidth:2}}>
 
         </TextInput>
       </View>

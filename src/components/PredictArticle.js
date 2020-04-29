@@ -9,11 +9,28 @@ import {
   TouchableWithoutFeedback,
   View,
   Dimensions,
+  Alert,
 } from 'react-native';
 import {Colors} from '../constants/iColors';
 const {width,height} =  Dimensions.get('window');
 import { Request } from "../utils/request";
 import { withNavigation, withOrientation } from 'react-navigation';
+
+Date.prototype.Format = function (fmt) {
+  var o = {
+      "M+": this.getMonth() + 1, //月份 
+      "d+": this.getDate(), //日 
+      "h+": this.getHours(), //小时 
+      "m+": this.getMinutes(), //分 
+      "s+": this.getSeconds(), //秒 
+      "q+": Math.floor((this.getMonth() + 3) / 3), //季度 
+      "S": this.getMilliseconds() //毫秒 
+  };
+  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+  for (var k in o)
+  if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+  return fmt;
+}
 
 class PredictArticle extends React.PureComponent {
   constructor(props) {
@@ -21,14 +38,14 @@ class PredictArticle extends React.PureComponent {
     this.predict= this.props.predict;
     this.userpredict = this.props.userpredict;
     this.dir = this.props.dir;
-
-    if(this.predict.title.indexOf('上证指数') >= 0) {
+    this.dirname = this.props.dirname;
+    if(this.predict.dir == 21) {
       this.code = "000001.XSHG"
       this.name = '上证指数 '
-    } else if(this.predict.title.indexOf('深证指数') >= 0) {
+    } else if(this.predict.dir == 24) {
       this.code = "399001.XSHE"
       this.name = '深证指数 '
-    } else if(this.predict.title.indexOf('创业板指') >= 0) {
+    } else if(this.predict.dir == 28) {
       this.code = "399006.XSHE"
       this.name = '创业板指 '
     }
@@ -59,7 +76,8 @@ class PredictArticle extends React.PureComponent {
       lastday:'',
       lastdayprice:'',
       lastdayups:0,
-      userpredict:this.userpredict
+      userpredict:this.userpredict,
+      predicttype:this.predict.type
     }
 
 
@@ -74,12 +92,31 @@ class PredictArticle extends React.PureComponent {
     
   }
 
+  changetype = async(type) => {
+    if(!type) {
+      this.props.changetype(this.state.predicttype);
+    } else {
+      if(this.state.predicttype == type) {
+        return;
+      }
+      this.props.changetype(type);
+    }
+    
+  }
+
+
   getStock = async() => {
     let url = "https://dataapi.joinquant.com/apis";
     let body = {
       "method": "get_current_token",
       "mob": "15150377790",
       "pwd": "691Eot$$",
+    }
+    let unit = "1d";
+    if(this.state.predicttype == "周线") {
+      unit = "1w"
+    } else if(this.state.predicttype == "月线") {
+      unit = "1M"
     }
     const token = await Request.post2(url,JSON.stringify(body),'formdata');
     if(token) {
@@ -88,9 +125,8 @@ class PredictArticle extends React.PureComponent {
       "code": this.code,
       token:token,
       "count": 10,
-      "unit": "1d",
-      "end_date": "2030-03-21",
-      
+      "unit": unit,
+      "end_date": new Date().Format("yyyy-MM-dd"),
       }
       const result = await Request.post2(url,JSON.stringify(body2),'formdata');
       console.log(result)
@@ -106,15 +142,20 @@ class PredictArticle extends React.PureComponent {
           /*if(lastdayprice.split('.').length  == 2 && lastdayprice.split('.')[1].length > 2) {
             lastdayprice = lastdayprice.substring(0,lastdayprice.length - 2);
           }*/
+          let date = new Date();
+          let hours = date.getHours();
+          hours = hours > 9 ? hours :'0' + hours
+          let minutes = date.getMinutes();
+          minutes = minutes > 9 ? minutes :'0' + minutes
           this.setState({
-            lastday:showdate + this.name,
+            lastday:showdate + " " + hours + ":" + minutes + "  ",
             lastdayprice:lastdayprice
           })
           if(result.length > 1) {
             let secondlastdayresult = items[items.length - 2];
             let secondlastdayresultitems = secondlastdayresult.split(",");
             let lastdayups = ((lastdayresultitems[2] - secondlastdayresultitems[2]) / secondlastdayresultitems[2] * 100).toFixed(2)
-            console.log(lastdayups)
+            //console.log(lastdayups)
             this.setState({
               lastdayups:lastdayups
             })
@@ -167,14 +208,8 @@ class PredictArticle extends React.PureComponent {
     this.userpredicttext = this.userpredicttext.split('(')[0]
   }
 
-  refresh = (predict,userpredict) => {
-    this.predict = predict;
-    this.userpredict = userpredict;
-    this.componentCaculate();
-    this.setState({
-      predict:predict,
-      userpredict:userpredict
-    })
+  refresh = () => {
+    this.changetype();
   }
 
 
@@ -206,7 +241,7 @@ class PredictArticle extends React.PureComponent {
 
   getDatetime = (st) => { 
     let a = st.split(" "); 
-    let b = a[0].split("-"); 
+    let b = a[0].split("-");
     let c = a[1].split(":"); 
     let date = new Date(b[0], b[1] - 1, b[2], c[0], c[1], c[2]);
     return date; 
@@ -243,7 +278,7 @@ class PredictArticle extends React.PureComponent {
   render() {
     
     return (
-      <TouchableOpacity onPress={() => {this.props.navigation.navigate('PredictScreen',{refresh:this.refresh,predict:this.predict,userpredict:this.userpredict,dir:this.dir})}} 
+      <TouchableOpacity onPress={() => {this.props.navigation.navigate('PredictScreen',{refresh:this.refresh,predict:this.predict,userpredict:this.userpredict,dir:this.dir,dirname:this.dirname})}} 
       style={{alignItems:"center",paddingHorizontal:15,paddingTop:5,paddingBottom:15,backgroundColor:'white',marginTop:5,borderBottomColor:'#e1e1e1',borderBottomWidth:0.5}}>
         {!!this.state.lastday &&
         <View style={{flexDirection:'row'}}>
@@ -253,12 +288,30 @@ class PredictArticle extends React.PureComponent {
         }
         <Text ellipsizeMode='tail' style={{maxWidth:width - 20,marginTop:10,fontWeight:'bold',color:'black',fontSize:17,lineHeight:21}} numberOfLines={2}>{this.predict.title}</Text>
         
+        <View style={{flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('日线')}}>
+          <Text style={[this.state.predicttype =='日线'?{color:Colors.TextColor}:{color:"black"},{fontSize:13}]}>日线</Text>
+        </TouchableOpacity>
+        <View>
+          <Text style={{fontSize:10}}>/</Text>
+        </View>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('周线')}}>
+          <Text style={[this.state.predicttype =='周线'?{color:Colors.TextColor}:{color:"black"},{fontSize:13}]} >周线</Text>
+        </TouchableOpacity>
+        <View>
+          <Text style={{fontSize:10}}>/</Text>
+        </View>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('月线')}}>
+          <Text style={[this.state.predicttype =='月线'?{color:Colors.TextColor}:{color:"black"},{fontSize:13}]} >月线</Text>
+        </TouchableOpacity>
+        </View>
+
         {this.predict && !this.state.userpredict && this.state.over == 0 &&
-        <View style={{marginTop:10,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:12}}>{'您还未预测哦，截止' + this.endtext}</Text></View>
+        <View style={{marginTop:0,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:12}}>{'您还未预测哦，截止' + this.endtext}</Text></View>
         }
         
         {false && this.state.over == 0 &&
-        <View style={{marginTop:10,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>距结束还有 </Text>
+        <View style={{marginTop:0,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>距结束还有 </Text>
           <View style={{width:20,alignItems:'center',paddingVertical:2,backgroundColor:"#fbe9d7"}}>
             <Text style={{color:'#d48d63',fontSize:13}}>{this.state.lefthour}</Text>
           </View>
@@ -273,11 +326,12 @@ class PredictArticle extends React.PureComponent {
         </View>
         }
         {this.state.over == 1 &&
-          <View style={{marginTop:10,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>今日预测已结束 </Text></View>
+          <View style={{marginTop:0,flexDirection:"row",alignItems:'center'}}><Text style={{color:'#d48d63',fontSize:13}}>预测已结束 </Text></View>
         }
-        <View style={{position:'relative',width:this.predictTablewidth,height:this.predictTabHeight}}>
+
+        <View style={{marginTop:10,position:'relative',width:this.predictTablewidth,height:this.predictTabHeight}}>
           <Image resizeMode='stretch' style={{display:'none',width:this.predictTablewidth,height:this.predictTabHeight}} source={this.u737}></Image>
-          <View style={{position:'absolute',marginTop:10,backgroundColor:'rgba(255,255,255,0.5)',width:this.predictTablewidth,height:this.predictTabHeight}}>
+          <View style={{position:'absolute',marginTop:0,backgroundColor:'rgba(255,255,255,0.5)',width:this.predictTablewidth,height:this.predictTabHeight}}>
             <View style={styles.tablewrap}>
               <View style={styles.tabletextwrap}><Text style={styles.font12}>{this.predict.option1}</Text></View>
               <View style={styles.tablecontentwrap}>
@@ -313,9 +367,9 @@ class PredictArticle extends React.PureComponent {
 
 
         {!this.userpredict && this.state.over == 0 && //未预测、未结束 显示去预测
-        <View style={{width:'100%',marginTop:5,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
+        <View style={{width:'100%',marginTop:0,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
           <Text style={{fontSize:12,color:Colors.sTextColor}}>当前奖池<Text style={{color:Colors.TextColor,fontSize:16}}>{this.total}</Text>银币</Text>
-          <TouchableOpacity onPress={() => {this.props.navigation.navigate('PredictScreen',{refresh:this.refresh,predict:this.predict,userpredict:this.userpredict,dir:this.dir})}} 
+          <TouchableOpacity onPress={() => {this.props.navigation.navigate('PredictScreen',{refresh:this.refresh,predict:this.predict,userpredict:this.userpredict,dir:this.dir,dirname:this.dirname})}} 
           style={{marginLeft:10,borderRadius:5,backgroundColor:Colors.TextColor,paddingVertical:8,paddingHorizontal:20}}>
             <Text style={{color:'white',fontWeight:'bold'}}>去预测</Text>
           </TouchableOpacity>
@@ -326,7 +380,7 @@ class PredictArticle extends React.PureComponent {
         }
         {
           this.userpredict && //已预测
-          <View style={{width:'100%',marginTop:5,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
+          <View style={{width:'100%',marginTop:0,paddingRight:10,flexDirection:'row',justifyContent:'flex-end',alignItems:'center'}}>
           <Text style={{fontSize:12,color:Colors.sTextColor}}>
             您已预测<Text style={{color:Colors.TextColor,fontSize:15}}>{" " + this.userpredicttext}</Text>
             {this.userpredict.state == 1 && <Text>{'，' + this.settletext}</Text>}
@@ -345,7 +399,7 @@ export default withNavigation(PredictArticle);
 
 const styles = StyleSheet.create({
    tablewrap:{
-    marginTop:10,
+    marginBottom:10,
     flexDirection:'row'
    },
    tabletextwrap:{
@@ -361,7 +415,7 @@ const styles = StyleSheet.create({
      fontSize:13
    },
    progressbar:{
-    height:17,
+    height:18,
     borderRadius:14
    },
    progresstext:{

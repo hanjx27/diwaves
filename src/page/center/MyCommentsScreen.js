@@ -108,7 +108,7 @@ export default class MyCommentsScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={this.user.name} isLeftTitle={false} />
+      <Header title={'我的评论'} isLeftTitle={false} />
       {
           this.state.isLoading && (
             <View style={{ flex: 1, padding: 50 }}>

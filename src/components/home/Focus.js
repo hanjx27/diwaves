@@ -14,7 +14,7 @@ import {WToast,WSnackBar,WModal} from 'react-native-smart-tip'
 import {Colors} from '../../constants/iColors';
 const {width,height} =  Dimensions.get('window');
 
-class Recommend extends React.Component {
+class Focus extends React.Component {
 
     constructor(props) {
         super(props);
@@ -93,8 +93,8 @@ class Recommend extends React.Component {
         const json = JSON.parse(user);
         this.user = json;
         await this.getUped();
-        //await this.loadContentIndexs();
-        //await this.loadContents();
+        await this.loadContentIndexs();
+        await this.loadContents();
       }
     }
 
@@ -222,7 +222,6 @@ class Recommend extends React.Component {
                   
                 }
               }
-              console.log(contents.length)
               this.setState({
                 contentsList:contents
               })
@@ -253,8 +252,8 @@ class Recommend extends React.Component {
         end:1
       })
       this.flaglistloading = true;
-      //await this.loadContentIndexs();
-      //await this.loadContents(true);
+      await this.loadContentIndexs();
+      await this.loadContents(true);
       this.flaglistloading = false;
     }
   
@@ -500,4 +499,4 @@ class Recommend extends React.Component {
   }
 }
 
-export default withNavigation(Recommend);
+export default withNavigation(Focus);

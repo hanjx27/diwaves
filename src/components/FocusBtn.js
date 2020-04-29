@@ -13,7 +13,7 @@ class FocusBtn extends React.PureComponent {
 
     constructor(props) {
         super(props);
-        this.user = null
+        this.user = props.user;
         this.focususerid = props.focususerid
         this.focuslist = props.focuslist;
         this.state= {
@@ -23,12 +23,17 @@ class FocusBtn extends React.PureComponent {
       }
 
     componentDidMount = async() =>{
+      if(this.user != null) {
+
+      } else {
         const user = await AsyncStorage.getItem('user');
         if(user != null && user != '') {
-            const json = JSON.parse(user);
-            this.user = json;
+          const json = JSON.parse(user);
+          this.user = json;
         }
+      }
 
+      if(this.user != null) {
         if(this.focuslist == null) {
           const focuslist = await AsyncStorage.getItem('focuslist_' + this.user.id);
           if(focuslist != null) {
@@ -55,12 +60,12 @@ class FocusBtn extends React.PureComponent {
             }
           }
         }
-        
+      }
     }
 
     focusPress = async() => {
         if(this.user == null) {
-          Alert.alert('请先登录')
+          Alert.alert('您尚未登录')
           return;
         }
         if(!this.state.focused) {

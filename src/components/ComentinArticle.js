@@ -20,6 +20,7 @@ import Datetime from '../components/Datetime';
 import { withNavigation } from 'react-navigation';
 import AsyncStorage from '@react-native-community/async-storage';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 class ComentinArticle extends React.PureComponent {
   constructor(props) {
     super(props);
@@ -60,11 +61,17 @@ class ComentinArticle extends React.PureComponent {
     try {
       const result = await Request.post('addUp',{
         userid:this.props.user.id,
+        username:this.props.user.name,
         type:2,
         objid:this.props.comment.id,
-        parentid:this.props.article.id
+        parentid:this.props.article.id,
+        commentcontent:this.props.comment.content,
+        commentuserid:this.props.comment.userid
       });
-
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       this.myUpedcomments[this.props.comment.id] = 1
       AsyncStorage.setItem('myUpedcomments_' + this.props.user.id, JSON.stringify(this.myUpedcomments), function (error) {})
 
@@ -81,10 +88,16 @@ class ComentinArticle extends React.PureComponent {
     try {
       const result = await Request.post('delUp',{
         userid:this.props.user.id,
+        username:this.props.user.name,
         type:2,
-        objid:this.props.comment.id
+        objid:this.props.comment.id,
+        commentcontent:this.props.comment.content,
+        commentuserid:this.props.comment.userid
       });
-
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
       this.myUpedcomments[this.props.comment.id] = -1
       AsyncStorage.setItem('myUpedcomments_' + this.props.user.id, JSON.stringify(this.myUpedcomments), function (error) {})
 
@@ -147,32 +160,38 @@ class ComentinArticle extends React.PureComponent {
     this.props.navigation.navigate('PersonScreen',{personid:this.props.comment.userid})
   }
 
+  report = () => {
+    !!this.props.report && this.props.report(this.props.comment.id,this.props.comment.content,this.props.comment.userid)
+  }
+
   render() {
     
 
     let up = require('../images/article/up1.png')
     let uped = require('../images/article/up2.png')
+    let more = require('../images/more.png');
+
     console.log('render comment')
     return (
-      <TouchableOpacity onPress={() => {this.props.navigation.navigate('CommentScreen',{article:this.props.article,comment:this.props.comment,commentuped:this.state.uped,updateReplyCountAndUp:this.updateReplyCountAndUp})}} style={{flexDirection:'row',paddingVertical:15,backgroundColor:'white',marginTop:5,borderBottomColor:'#f1f1f1',borderBottomWidth:0.5}}>
+      <TouchableOpacity onPress={() => {this.props.navigation.navigate('CommentScreen',{article:this.props.article,comment:this.props.comment,commentuped:this.state.uped,updateReplyCountAndUp:this.updateReplyCountAndUp})}}
+       style={{flexDirection:'row',paddingVertical:5,backgroundColor:'white',marginTop:5,}}>
         <TouchableOpacity onPress={this.goPerson}>
-          <Image style={{width:38,height:38,borderRadius:5,marginRight:10}} source={{uri:(baseimgurl + this.props.comment.avatarUrl)}}></Image>
+          <Image style={{width:38,height:38,borderRadius:19,marginRight:10}} source={{uri:(baseimgurl + this.props.comment.avatarUrl)}}></Image>
         </TouchableOpacity>
         <View style={{flex:1,flexDirection:'column'}}>
         <View style={{display:'flex',flexDirection:'row',alignItems:"center"}}>
-          <TouchableOpacity onPress={this.goPerson} style={{flex:1}}>
-            <Text style={{fontSize:14,fontWeight:"bold",color:Colors.TextColor}}>{this.props.comment.username}</Text>
-          </TouchableOpacity>
+          <Text style={{flex:1,fontSize:14,fontWeight:"bold",color:Colors.TextColor}}>{this.props.comment.username}</Text>
+        
 
 
           {this.state.uped &&
-          <TouchableOpacity onPress={()=>{this.delUp()}} style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
+          <TouchableOpacity onPress={()=>{this.delUp()}} style={{width:50,height:40,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
             <MaterialCommunityIcons name='thumb-up' size={19} color={Colors.TextColor}/>
             <Text style={{fontSize:13,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
           </TouchableOpacity>
           }
           {!this.state.uped &&
-            <TouchableOpacity onPress={()=>{this.addUp()}} style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
+            <TouchableOpacity onPress={()=>{this.addUp()}} style={{width:50,height:40,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
             <MaterialCommunityIcons name='thumb-up-outline' size={19} color={'black'}/>
             {this.state.up == 0 &&
             <Text style={{fontSize:13,marginLeft:3,marginTop:2}}>赞</Text>
@@ -184,13 +203,13 @@ class ComentinArticle extends React.PureComponent {
           }
           
         </View>
-        <Text style={{marginTop:10,lineHeight:18}}>{this.props.comment.content}</Text>
+        <Text style={{marginTop:10,lineHeight:18}}>{!!this.props.comment.content ? this.props.comment.content : '推荐了'}</Text>
 
         {this.props.comment.pic != null && this.props.comment.pic != '' &&
         <AutoSizeImage style={{marginTop:10}} maxWidth={width*0.5} source={{uri:baseimgurl + this.props.comment.pic}}></AutoSizeImage>
         }
 
-        <View style={{flexDirection:'row',marginTop:10,justifyContent:'space-between'}}>
+          <View style={{height:40,flexDirection:'row',marginTop:0,alignItems:'center',justifyContent:'space-between'}}>
           <View style={{flexDirection:'row',alignItems:'center'}}>
             <Datetime style={{fontSize:12,color:Colors.GreyColor,marginRight:10}} datetime={this.props.comment.createdatetime}></Datetime>
             {this.state.replycount == 0 &&
@@ -200,11 +219,19 @@ class ComentinArticle extends React.PureComponent {
             <View style={{paddingVertical:5,paddingHorizontal:10,borderRadius:12,backgroundColor:'#f7f7f7'}}><Text style={{fontSize:12,color:'#222'}}>{this.state.replycount}回复</Text></View>
             }
           </View>
+
+          <View style={{flexDirection:'row',alignItems:'center',}}>
           {(this.props.user != null && (this.props.article.userid == this.props.user.id || this.props.comment.userid == this.props.user.id)) &&
           <TouchableOpacity style={{paddingVertical:3,paddingHorizontal:3}} onPress={()=>this.deleteComment()}>
             <Text style={{fontSize:12,color:'#222'}}>删除</Text>
           </TouchableOpacity>
           }
+            <TouchableOpacity onPress={this.report} style={{width:40,height:40,alignItems:'flex-end',justifyContent:'center'}}>
+            <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:1,borderRadius:3,backgroundColor:'#f3f3f3'}}>
+           <AntDesign name='close' size={9} color={'#888'}/>
+           </View>
+          </TouchableOpacity>
+          </View>
         </View>
       </View>
       </TouchableOpacity>

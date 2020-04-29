@@ -10,8 +10,9 @@ const { StatusBarManager } = NativeModules;
 import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
-import Tradelog from '../../components/Tradelog';
-export default class TradeScreen extends React.Component {
+import PersonSearch from '../../components/PersonSearch';
+import {Colors} from '../../constants/iColors';
+export default class MyFocusScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
       headerBackTitle: null,
@@ -19,10 +20,10 @@ export default class TradeScreen extends React.Component {
   };
   constructor(props) {
     super(props);
-
+    this.focuslist = []
     this.state = {
        user:null,
-       tradeList:[]
+       personList:[]
     }
   }
   
@@ -34,51 +35,36 @@ export default class TradeScreen extends React.Component {
   }
 
   componentDidMount= async() => {
-    
-    const userstr = await AsyncStorage.getItem('user');
-    if(userstr != null && userstr != '') {
-      const user = JSON.parse(userstr);
-      //await AsyncStorage.removeItem('tradeList_' + user.id)
-      this.setState({user:user})
-      const tradeListstr = await AsyncStorage.getItem('tradeList_' + user.id);
-      if(tradeListstr != null && tradeListstr != '') {
-        let json = JSON.parse(tradeListstr);
-        this.setState({tradeList:json})
-     }
-     this.getTrade(user);
-    }
-  }
-
-  getTrade = async(user) => {
-    if(this.flag) {
-      return;
-    }
-    this.flag = true;
-    try {
-      const result = await Request.post('getTradelog',{
-        userid:user.id,
-      });
-      if(result.code == 1) {
-        if(result.data.length >  0) {
-          let tradeList = this.state.tradeList;
-          tradeList = result.data.concat(tradeList);
-          if(tradeList.length > 1000) {
-            tradeList = tradeList.slice(0,1000);
-          }
-          AsyncStorage.setItem('tradeList_' + user.id, JSON.stringify(tradeList), function (error) {})
-          this.setState({
-            tradeList:tradeList
-          })
+    const user = await AsyncStorage.getItem('user');
+    if(user != null && user != '') {
+      const json = JSON.parse(user);
+      this.setState({user:json})
+      let focuslist = await AsyncStorage.getItem('focuslist_' + json.id);
+      if(focuslist != null) {
+        const json = JSON.parse(focuslist);
+        this.focuslist = json;
+        if(json.length > 0) {
+          const ids = focuslist.substring(1,focuslist.length - 1);
+          this.getFocusUserInfo(ids);
         }
       }
-      
-      this.flag = false;
-    } catch (error) {
-      console.log(error)
-      this.flag = false;
     }
+    
   }
 
+  getFocusUserInfo = async(ids) => {
+    console.log(ids);
+    try {
+      const result = await Request.post('getFocusUserInfo',{
+        ids:ids
+      });
+      this.setState({
+        personList:result.data
+      })
+    } catch (error) {
+      console.log(error)
+    }
+  }
   componentWillUnmount() {
     
   }
@@ -91,20 +77,22 @@ export default class TradeScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title='交易记录' isLeftTitle={true}/>
-      <FlatList
-              style={{ marginTop: 0 }}
-              data={this.state.tradeList}
+      <Header title='我的关注'/>
+      <View style={{flex:1}}>
+             <FlatList
+              style={{ marginTop: 0,flex:1}}
+              data={this.state.personList}
               renderItem={
                 ({ item }) => {
-                  return(
-                    <Tradelog tradelog={item}></Tradelog>
-                  )
+                  return (<PersonSearch user={this.state.user} focuslist={this.focuslist} person={item}></PersonSearch>)
                 }
               }
-              keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+              
               ItemSeparatorComponent={this._separator}
+              keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+              
             />
+      </View>
 
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
       </View>

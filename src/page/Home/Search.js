@@ -37,7 +37,7 @@ export default class Search extends React.Component {
     this.peopleendid = 99999999999;
     this.peopleend = false;
     this.peopleflaglistloading = false;
-    this.focuslist = {}
+    this.focuslist = []
     ///////
     this.state = {
         user:null,
@@ -261,7 +261,7 @@ export default class Search extends React.Component {
               onEndReached={this._personOnEndReached}
               renderItem={
                 ({ item }) => {
-                  return (<PersonSearch focuslist={this.focuslist} person={item}></PersonSearch>)
+                  return (<PersonSearch user={this.state.user} focuslist={this.focuslist} person={item}></PersonSearch>)
                 }
               }
               

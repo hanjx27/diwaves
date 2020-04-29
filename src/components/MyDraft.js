@@ -17,6 +17,7 @@ import { baseimgurl } from '../utils/Global';
 import Datetime from '../components/Datetime';
 import AntDesign from 'react-native-vector-icons/AntDesign'
 import { withNavigation } from 'react-navigation';
+import { Request } from '../utils/request';
 
 class MyDraft extends React.PureComponent {
   constructor(props) {
@@ -38,6 +39,7 @@ class MyDraft extends React.PureComponent {
   } 
  
   deleteDraft = () => {
+
     Alert.alert(
       '确认删除此草稿？',
       '',
@@ -47,10 +49,20 @@ class MyDraft extends React.PureComponent {
       ],
       { cancelable: true }
       )
-   
   }
 
-  goCreateAritlce = () => {
+  goCreateAritlce = async() => {
+    try {
+      const result = await Request.post('getDraftContent',{
+        draftid:this.mydraft.id
+      });
+      if(result.code == 1) {
+       this.mydraft.content = result.data;
+      }
+    } catch (error) {
+      
+    }
+
     this.props.navigation.navigate('CreateAritcle',{draft:this.mydraft});
   }
 
@@ -60,7 +72,7 @@ class MyDraft extends React.PureComponent {
       <View style={{flexDirection:'column',paddingHorizontal:15,paddingVertical:13,backgroundColor:'white',marginTop:5,borderBottomColor:'#eee',borderBottomWidth:0.4}}>
         <View style={{flex:1,flexDirection:'column'}}>
           <TouchableOpacity onPress={this.goCreateAritlce}>
-            <Text numberOfLines={1} ellipsizeMode="tail" style={{fontSize:16,fontWeight:'bold'}}>{this.mydraft.title?this.mydraft.title:'无标题'}</Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={{fontSize:16,fontWeight:'bold',color:'#222'}}>{this.mydraft.title?this.mydraft.title:'无标题'}</Text>
             <Text numberOfLines={1} ellipsizeMode="tail" style={{marginTop:10,fontSize:14,color:Colors.sTextColor}}>{this.mydraft.contenttext?this.mydraft.contenttext:'无内容'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={this.deleteDraft} style={{width:60,marginTop:15,flexDirection:"row",alignItems:'center'}}>

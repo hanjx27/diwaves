@@ -30,21 +30,39 @@ export default class MyDraftsScreen extends React.Component {
   
 
   componentWillMount = async() => {
+
     //AsyncStorage.removeItem('drafts');
-    const drafts = await AsyncStorage.getItem('drafts_' + this.user.id);
+    this.getMyDrafts();
+    /*const drafts = await AsyncStorage.getItem('drafts_' + this.user.id);
     
     if(drafts != null) {
       this.setState({
         draftsList:JSON.parse(drafts)
       })
-    }
-    
+    } else {
+      this.getMyDrafts();
+    }*/
 
   }
 
-  deleteDraft = async(draft) => {
+  getMyDrafts = async() => {
     try {
+      const result = await Request.post('getDrafts',{
+        userid:this.user.id
+      });
+      if(result.code == 1) {
+        this.setState({
+          draftsList:result.data
+        })
+      }
+    } catch (error) {
       
+    }
+  }
+
+  deleteDraft = async(draft) => {
+    console.log(draft)
+    try {
       let draftsList = this.state.draftsList;
       for(let i = 0;i < draftsList.length;i++) {
         if(draftsList[i].id = draft.id) {
@@ -52,10 +70,11 @@ export default class MyDraftsScreen extends React.Component {
           break;
         }
       }
+      console.log(draftsList);
       this.setState({
         draftsList:draftsList
       })
-      AsyncStorage.setItem('drafts',JSON.stringify(draftsList));
+      AsyncStorage.setItem('drafts_' + this.user.id,JSON.stringify(draftsList));
       const result = await Request.post('deleteDraft',{
         draftid:draft.id,
         userid:this.user.id
@@ -80,7 +99,7 @@ export default class MyDraftsScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={'草稿箱'} isLeftTitle={true} />
+      <Header title={'草稿箱'}/>
       <FlatList
               style={{ marginTop: 0 }}
               data={this.state.draftsList}
@@ -91,7 +110,7 @@ export default class MyDraftsScreen extends React.Component {
               }
               
               ItemSeparatorComponent={this._separator}
-              keyExtractor={(item, index) => item.userpredictid} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+              keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
       />
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
       </View>

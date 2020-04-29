@@ -20,6 +20,8 @@ class ThumbArticle extends React.PureComponent {
     super(props);
     
     this.article = this.props.article;
+    //this.pushhome = this.props.pushhome;
+    this.pushuserid = this.props.pushuserid;
     this.getArticleDone = !!this.article.username ? true : false
     this.audioPlayBgs = [
         require('../images/u448_3.png'),
@@ -63,7 +65,8 @@ class ThumbArticle extends React.PureComponent {
 
   goArticleDetail = async() => {
     await this.getArticle();
-    this.props.navigation.navigate('ArticleScreen',{article:this.article});
+    
+    this.props.navigation.navigate('ArticleScreen',{article:this.article,pushuserid:this.pushuserid});
   }
 
 

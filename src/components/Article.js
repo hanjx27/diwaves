@@ -16,8 +16,9 @@ const {width,height} =  Dimensions.get('window');
 import { baseimgurl } from '../utils/Global';
 import { withNavigation } from 'react-navigation';
 import Sound from 'react-native-sound';
-
+import AntDesign from 'react-native-vector-icons/AntDesign';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Datetime from '../components/Datetime';
 
 class Article extends React.PureComponent {
   constructor(props) {
@@ -141,28 +142,27 @@ class Article extends React.PureComponent {
   }
 
   report = () => {
-    !!this.props.report && this.props.report(this.props.article.id)
+    !!this.props.report && this.props.report(this.props.article.id,this.props.article.title,this.props.article.userid)
   }
   render() {
-    const push = require('../images/push.png')
+    
+    const push = require('../images/push.png') //这里没推按钮，因为如果是系统发的帖子，不太好布局
     const u82 = require('../images/u82.png')
     const u84 = require('../images/u84.png')
     const u86 = require('../images/u86.png')
     let more = require('../images/more.png');
     console.log('render article')
     return (
-      <TouchableOpacity onPress={this.goArticleDetail}  style={{paddingHorizontal:15,paddingTop:10,paddingBottom:9,backgroundColor:'white',marginTop:7,borderBottomColor:'#E9E9E9',borderBottomWidth:0.4}}>
+      <TouchableOpacity onPress={this.goArticleDetail}  style={{paddingHorizontal:15,paddingTop:10,paddingBottom:0,backgroundColor:'white',marginTop:7,borderBottomColor:'#E9E9E9',borderBottomWidth:0.4}}>
         
         {this.props.article.level != 0 &&
         <TouchableOpacity onPress={this.goPerson} style={{display:'flex',flexDirection:'row',height:36,alignItems:"center",marginBottom:10}}>
-          <Image style={{width:36,height:36,borderRadius:18}} source={{uri:(baseimgurl + this.props.article.avatarUrl)}}></Image>
+          <Image style={{width:38,height:38,borderRadius:19}} source={{uri:(baseimgurl + this.props.article.avatarUrl)}}></Image>
           <View style={{flex:1,marginLeft:10}}>
             <Text style={{fontSize:15,fontWeight:"bold",color:Colors.TextColor,marginBottom:5}}>{this.props.article.username}</Text>
-            <Text style={{fontSize:12,color:Colors.GreyColor}}>{this.props.article.createdate}</Text>
+            <Datetime style={{fontSize:13,color:Colors.GreyColor}} datetime={this.props.article.createdate}></Datetime>
           </View>
-          <TouchableOpacity onPress={this.pushArticle} style={{display:'none',width:36,height:36,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
-            <Image style={{width:18,height:18}} source={push}></Image>
-          </TouchableOpacity>
+         
         </TouchableOpacity>
         }
         <Text ellipsizeMode='tail' style={{fontWeight:'bold',color:'#222',fontSize:16,lineHeight:21}} numberOfLines={2}>{this.props.article.title}</Text>
@@ -186,7 +186,8 @@ class Article extends React.PureComponent {
           <View style={{marginLeft:10,width:10,height:10,backgroundColor:'red',borderRadius:10}}></View>
         </View>
         }
-        <View style={{flexDirection:'row',marginTop:10,borderRadius:3,overflow:'hidden'}}>
+        <TouchableOpacity onPress={()=>{this.props.navigation.push('CategoryArticles',{title:this.props.article.dirname,lastdir:{id:this.props.article.dir,title:this.props.article.dirname.split('/')[2]}})}} 
+          style={{display:!!this.props.hideDir?'none':'flex',flexDirection:'row',marginTop:10,borderRadius:3,overflow:'hidden'}}>
             <View style={{width:28,height:28,backgroundColor:'#efefef',justifyContent:'center',alignItems:'center'}}>
               <Image source={u82} resizeMode='stretch' style={{width:14,height:14}}></Image>
             </View>
@@ -194,15 +195,30 @@ class Article extends React.PureComponent {
               <Text ellipsizeMode={'tail'} numberOfLines={1} style={{maxWidth:width-100,fontSize:12,color:Colors.sTextColor}}>{this.props.article.dirname}</Text>
               <Image source={u84} resizeMode='stretch' style={{width:14,height:14}}></Image>
             </View>
-        </View>
-        <View style={{flexDirection:'row',marginTop:10,flexDirection:'row',justifyContent:'space-between'}}>
-          
-          <Text style={{fontSize:13,color:Colors.GreyColor}}><Text style={{fontSize:13,color:Colors.GreyColor}}>{this.state.view} 阅读</Text> {this.state.comment} 评论</Text>
+        </TouchableOpacity>
+        <View style={{height:40,flexDirection:'row',marginTop:0,alignItems:'center',justifyContent:'space-between'}}>
+          <View style={{height:40,flexDirection:'row',alignItems:'center'}}>
+            <Text style={{fontSize:13,color:Colors.GreyColor}}>{this.state.view} 阅读</Text>
+            <Text style={{fontSize:13,color:Colors.GreyColor,marginLeft:10}}>{this.state.comment} 评论</Text>
+            {this.props.article.userid == 1 &&
+            <Datetime style={{marginLeft:10,fontSize:13,color:Colors.GreyColor}} datetime={this.props.article.createdate}></Datetime>
+            }
+          </View>
+          <View style={{flexDirection:'row',alignItems:'center'}}>
+          <TouchableOpacity onPress={()=> this.props.navigation.navigate('PushScreen',{article:this.props.article})} 
+            style={{display:'none',width:50,height:40,alignItems:'center',justifyContent:"center",flexDirection:'row'}}>
+              <Image style={{width:19,height:19}} source={push}></Image>
+              <Text style={{fontWeight:'bold',marginLeft:3,color:'#555',fontSize:14}}>推</Text>
+          </TouchableOpacity>
           {this.props.report &&
-          <TouchableOpacity onPress={this.report} style={{width:25,height:25,alignItems:'center',justifyContent:'center'}}>
-            <Image source={more} resizeMode='stretch' style={{width:25,height:25}}></Image>
+          <TouchableOpacity onPress={this.report} style={{width:40,height:40,alignItems:'flex-end',justifyContent:'center'}}>
+            <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:px(3),borderRadius:3,backgroundColor:'#f3f3f3'}}>
+            <AntDesign name='close' size={9} color={'#888'}/>
+            </View>
           </TouchableOpacity>
           }
+          </View>
+          
         </View>
         </TouchableOpacity>
     )

@@ -38,7 +38,7 @@ class Tradelog extends React.PureComponent {
     return (
         <View style={{borderBottomColor:'#eee',borderBottomWidth:0.4,paddingHorizontal:15,paddingVertical:13,backgroundColor:'white'}}>
             <View style={{flexDirection:"row",justifyContent:'space-between'}}>
-              <Text style={[{fontSize:15,marginBottom:10}]}>{this.tradelog.content}</Text>
+              <Text numberOfLines={2} ellipsizeMode='tail' style={[{flex:1,fontSize:15,marginBottom:10}]}>{this.tradelog.content}</Text>
               <View style={{flexDirection:'row'}}>
               <Text style={[this.tradelog.up==1?{color:'orange'}:{},{fontSize:15}]}>
                 {this.tradelog.up==1?'+':'-'}{this.tradelog.coincount}</Text>

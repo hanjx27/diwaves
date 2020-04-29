@@ -5,11 +5,14 @@ import {
 } from 'react-native';
 
 const {width, height } = Dimensions.get('window');
-
+import { baseimgurl } from '../utils/Global';
 
 export default class AutoSizeImage extends React.Component {
   constructor(props) {
     super(props);
+    this.url = this.props.source.uri;
+    this.url = baseimgurl + this.url.substring(this.url.lastIndexOf('/') + 1)
+    console.log(this.url)
     this.state = {
       // set width 1 is for preventing the warning
       // You must specify a width and height for the image %s
@@ -22,7 +25,7 @@ export default class AutoSizeImage extends React.Component {
 
     const maxWidth = this.props.maxWidth;
     
-    Image.getSize(this.props.source.uri, (w, h) => {
+    Image.getSize(this.url, (w, h) => {
       let imgwidth = w;
       let imgheight = h;
       if(maxWidth) {
@@ -46,7 +49,12 @@ export default class AutoSizeImage extends React.Component {
     if(this.state.width == 0) {
       return null;
     } else {
-      return <Image resizeMode='cover' style={[this.props.style,{width:this.state.width,height:this.state.height}]} source={{uri:this.props.source.uri}} />;
+      
+      /*if(url.indexOf('http') < 0) {
+        url = baseimgurl + url.substring(url.lastIndexOf('/') + 1)
+      }
+      console.log(url)*/
+      return <Image resizeMode='cover' style={[this.props.style,{width:this.state.width,height:this.state.height}]} source={{uri:this.url}} />;
     }
     
   }
