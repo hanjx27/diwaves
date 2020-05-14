@@ -64,11 +64,24 @@ export default class MyArticlesScreen extends React.Component {
             isLoading:false
           })
           if(result.data.length < this.pagecount) {
-              this.end = true
+              this.end = true;
+              this.updateRedisCount(articles.length);
           } else {
             this.endid = result.data[result.data.length - 1].id
           }
       }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  updateRedisCount = async(count)=> {
+    try {
+      await Request.post('updateRedisCount',{
+        userid:this.user.id,
+        rediskey:'articlecount',
+        count:count
+      });
     } catch (error) {
       console.log(error)
     }

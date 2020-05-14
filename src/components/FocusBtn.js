@@ -109,7 +109,7 @@ class FocusBtn extends React.PureComponent {
       
   render() {
     return (
-        <TouchableOpacity onPress={this.focusPress} style={[!this.state.focused?{backgroundColor:'#f7f7f7'}:{backgroundColor:'#017bd1'},{borderRadius:5,paddingVertical:7,width:70,alignItems:'center'}]}>
+        <TouchableOpacity onPress={this.focusPress} style={[!this.state.focused?{backgroundColor:'#f7f7f7'}:{backgroundColor:'#017bd1'},{borderRadius:5,width:70,alignItems:'center',height:30,justifyContent:"center"}]}>
             <Text style={[!this.state.focused?{color:Colors.TextColor}:{color:'white'},{fontWeight:'bold'}]}>{this.state.focused ? '已关注' : '+ 关注'}</Text>
       </TouchableOpacity>
     )

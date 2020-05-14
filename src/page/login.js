@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {DeviceEventEmitter,Alert,Image,TextInput,FlatList,StatusBar,NativeModules,PanResponder,SafeAreaView,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated} from 'react-native';
+import {ActivityIndicator,Modal,DeviceEventEmitter,Alert,Image,TextInput,FlatList,StatusBar,NativeModules,PanResponder,SafeAreaView,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../components/Header';
 import {px,isIphoneX} from '../utils/px';
@@ -12,9 +12,10 @@ const { StatusBarManager } = NativeModules;
 import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../utils/request';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
-import { baseurl } from '../utils/Global';
+import { baseurl, baseimgurl } from '../utils/Global';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import {Colors} from '../constants/iColors';
+import ImagePicker from 'react-native-image-picker';
 export default class login extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -28,7 +29,11 @@ export default class login extends React.Component {
        user:null,
        phone:'',
        vercode:'',
-       times:0
+       times:0,
+       settingVisible:false,
+       avatar:'user.png',
+       name:'',
+       uploading:false
     }
   }
   
@@ -43,7 +48,7 @@ export default class login extends React.Component {
   }
 
   componentWillUnmount() {
-    this.timecount && clearTimeout(this.timecount);
+    !!this.timecount && clearTimeout(this.timecount);
   }
   
   phoneLogin = async()=> {
@@ -84,6 +89,7 @@ export default class login extends React.Component {
         if(!!result.data) {
           await AsyncStorage.setItem('user', JSON.stringify(result.data), function (error) {})
           DeviceEventEmitter.emit('login', result.data);
+          !!this.timecount && clearTimeout(this.timecount);
           this.props.navigation.goBack();
         } else {
           const toastOpts = {
@@ -96,7 +102,10 @@ export default class login extends React.Component {
           WToast.show(toastOpts)
           return;
         }
-        
+      } else if(result.code == 2) { // new user
+        this.setState({
+          settingVisible:true
+        })
       }
     } catch (error) {
       console.log(error)
@@ -130,10 +139,96 @@ export default class login extends React.Component {
     }
   }
 
+  avatarChange =() => {
+    const photoOptions = {
+      title:'请选择',
+      quality: 0.8,
+      cancelButtonTitle:'取消',
+      takePhotoButtonTitle:'拍照',
+      chooseFromLibraryButtonTitle:'选择相册',
+      allowsEditing: true,
+      noData: false,
+      storageOptions: {
+          skipBackup: true,
+          path: 'images'
+      }
+    };
+    let that = this;
+    ImagePicker.showImagePicker(photoOptions, async (response) => {
+      this.pickimage = true;
+      if (response.didCancel) {
+      }
+      else if (response.error) {
+         
+      }
+      else if (response.customButton) {
+      }
+      else {
+        this.setState({
+          uploading:true
+        },async () => {
+          const result = await that.uploadImage(response.uri);
+          if(result != null&& result.path) {
+            this.setState({
+              avatar:result.path,
+              uploading:false
+            })
+          } else {
+            Alert.alert('error')
+          }
+        })
+        
+      }
+    })
+  }
+
+  uploadImage = async(uri) => {
+    let result;
+    let formData = new FormData();
+    let file = {uri: "file://" + uri, type: 'multipart/form-data', name: uri};
+    formData.append("multipartFiles",file);
+    try {
+      result = await Request.post3('uploadImage',formData,'formdata');
+    } catch (error) {
+      console.log(error)
+    }
+    return result;
+  }
+
+  confirm = async () => {
+    if(this.state.name == '') {
+      Alert.alert('请您输入名字')
+      return;
+    }
+    try {
+      const result = await Request.post('phoneRegister',{
+        phone:this.state.phone,
+        name:this.state.name,
+        avatar:this.state.avatar
+      });
+      if(result.code == 1) {
+         if(result.data == null) {
+           Alert.alert('名字重复，请重新输入')
+           return;
+         } else {
+           this.setState({settingVisible:false}, async () => {
+            await AsyncStorage.setItem('user', JSON.stringify(result.data), function (error) {})
+            DeviceEventEmitter.emit('login', result.data);
+            !!this.timecount && clearTimeout(this.timecount);
+            this.props.navigation.goBack();
+           })
+          
+         }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
   render() {
     return (
       <ScrollView style={{width:width,height:height,flexDirection:'column',backgroundColor: 'white',display:'flex'}}>
-       
+
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
       <TouchableOpacity style={{marginLeft:15,marginTop:15}} onPress={()=> {this.props.navigation.goBack()}}>
@@ -191,6 +286,39 @@ export default class login extends React.Component {
       </View>
 
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
+
+        <Modal
+          animationType={"slide"}
+          transparent={true}
+          visible={this.state.settingVisible}
+        >
+          <View style={[{top:0,left:0,width:width,height:height,backgroundColor:'rgba(0,0,0,0.4)',zIndex:9999,flexDirection:'column',alignItems:"center",justifyContent:"flex-end"}]}>
+            <View style={{width:width,height:600,borderRadius:5,backgroundColor:"white",borderTopRightRadius:20,borderTopLeftRadius:20,alignItems:"center"}}>
+              <View style={{marginTop:30,alignItems:"center",justifyContent:"center"}}><Text style={{color:"black",fontSize:16}}>给您的账号设置头像和名字吧</Text></View>
+              <TouchableWithoutFeedback onPress={this.avatarChange}>
+                <View style={{position:'relative',overflow:'hidden',marginTop:30,borderRadius:100,width:100,height:100}}>  
+                  <Image resizeMode='cover' source={{uri:baseimgurl + this.state.avatar}} style={{width:100,height:100}}></Image>
+                  <FontAwesome name='camera' size={46} color={'white'} style={{top:27,left:26,position:'absolute'}}/>
+                </View>
+              </TouchableWithoutFeedback>
+              
+              <View style={{marginTop:10,display:this.state.uploading ? 'flex' : 'none'}} >
+                <ActivityIndicator color='black'/>
+              </View>
+              
+
+              <TextInput value={this.state.name} onChangeText = {(name) => this.setState({name})} 
+              placeholder={'输入名字'}
+              autoFocus={true}
+              maxLength={15} underlineColorAndroid="transparent"
+              style={{marginTop:30,width:width - 60,fontSize:15,paddingLeft:10,borderWidth:1,borderColor:"#aaa",textAlignVertical: 'top',borderRadius:3,height:42}}/>
+
+
+              <TouchableOpacity onPress={this.confirm} style={{width:width - 60,marginTop:30,borderRadius:5,height:42,alignItems:'center',justifyContent:"center",backgroundColor:Colors.TextColor}}><Text style={{color:'white',fontSize:16}}>确定</Text></TouchableOpacity>
+    
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     );
   }

@@ -10,8 +10,8 @@ const { StatusBarManager } = NativeModules;
 import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
-import MyPredict from '../../components/MyPredict';
-export default class MyPredictsScreen extends React.Component {
+import Article_comment from '../../components/Article_comment';
+export default class PersonCommentsScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
       headerBackTitle: null,
@@ -23,8 +23,10 @@ export default class MyPredictsScreen extends React.Component {
     this.pagecount = 15;
     this.endid = 0;
     this.user = props.navigation.getParam('user');
+    this.me = null;
+    this.myUpedcomments = {};
     this.state = {
-      predictsList:[],
+      commentsList:[],
       isLoading:true
     }
     this.flaglistloading = false;
@@ -34,7 +36,18 @@ export default class MyPredictsScreen extends React.Component {
   
 
   componentWillMount = async() => {
-    this.getUserPredicts();
+    const me = await AsyncStorage.getItem('user');
+    if(me != null && me != '') {
+      const json = JSON.parse(me);
+      this.me = json;
+
+      const myUpedcommentsstr = await AsyncStorage.getItem('myUpedcomments_' + this.me.id);
+      if(myUpedcommentsstr != null) {
+        this.myUpedcomments = JSON.parse(myUpedcommentsstr);
+      }
+    }
+
+    this.getUserComments();
 
   }
 
@@ -42,24 +55,32 @@ export default class MyPredictsScreen extends React.Component {
     
   }
 
-  getUserPredicts = async() => {
+  getUserComments = async() => {
     try {
-      const result = await Request.post('getMyPredicts',{
+      const result = await Request.post('getMyComments',{
         pagecount:this.pagecount,
         endid:this.endid,
-        userid:this.user.id
+        userid:this.user.id,
+        push:-1
       });
       if(result.code == 1) {
-          let predictsList = this.state.predictsList
-          
-          predictsList = predictsList.concat(result.data)
+          let commentsList = this.state.commentsList
+          for(let i = 0;i < result.data.length;i++) {
+              let commenthome = result.data[i]
+              if(commenthome.onlyauth == 1 && (!this.me || (commenthome.userid != this.me.id && commenthome.article.userid != this.me.id))) {
+                continue;
+              }
+              commenthome.username = this.user.name;
+              commenthome.avatarUrl = this.user.avatar;
+              commentsList.push(commenthome)
+          }
           this.setState({
-            predictsList:predictsList,
+            commentsList:commentsList,
             isLoading:false
           })
           if(result.data.length < this.pagecount) {
               this.end = true
-              this.updateRedisCount(predictsList.length);
+              this.updateRedisCount(commentsList.length);
           } else {
             this.endid = result.data[result.data.length - 1].id
           }
@@ -73,16 +94,14 @@ export default class MyPredictsScreen extends React.Component {
     try {
       await Request.post('updateRedisCount',{
         userid:this.user.id,
-        rediskey:'predictcount',
+        rediskey:this.title=='我的评论'?'commentcount':'pushcount',
         count:count
       });
     } catch (error) {
       console.log(error)
     }
   }
-
   _onEndReached =() => {
-    console.log('reach end')
     if(this.flaglistloading) {
       return;
     }
@@ -90,7 +109,7 @@ export default class MyPredictsScreen extends React.Component {
       return;
     }
     this.flaglistloading = true;
-    this.getUserPredicts();
+    this.getUserComments();
     this.flaglistloading = false;
   }
 
@@ -105,7 +124,7 @@ export default class MyPredictsScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={'预测记录'} />
+      <Header title={this.user.name} isLeftTitle={false} />
       {
           this.state.isLoading && (
             <View style={{ flex: 1, padding: 50 }}>
@@ -115,17 +134,17 @@ export default class MyPredictsScreen extends React.Component {
         }
       <FlatList
               style={{ marginTop: 0 }}
-              data={this.state.predictsList}
+              data={this.state.commentsList}
               onEndReachedThreshold={1}
               onEndReached={this._onEndReached}
               renderItem={
                 ({ item }) => {
-                  return (<MyPredict mypredict={item}></MyPredict>)
+                  return (<Article_comment myUpedcomments={this.myUpedcomments} user={this.me} commenthome={item}></Article_comment>)
                 }
               }
               
               ItemSeparatorComponent={this._separator}
-              keyExtractor={(item, index) => item.userpredictid} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+              keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
       />
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
       </View>

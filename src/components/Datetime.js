@@ -35,6 +35,8 @@ class Datetime extends React.PureComponent {
     try {
       if(datenow.getFullYear() != date.getFullYear()) {
         datetimetext = date.Format("yyyy-MM-dd");
+      } else if(datenow.getMonth() != date.getMonth()) {
+        datetimetext = date.Format("MM-dd hh:mm");
       } else if(datenow.getDate() != date.getDate()) {
         datetimetext = date.Format("MM-dd hh:mm");
       } else if(datenow.getHours() != date.getHours()) {

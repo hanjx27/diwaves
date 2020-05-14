@@ -1,16 +1,16 @@
 import React, { Component } from 'react';
-import {Image,FlatList,StatusBar,NativeModules,PanResponder,TextInput,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
+import {Image,FlatList,ActivityIndicator,NativeModules,PanResponder,TextInput,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
-
+import ImagePicker from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { ScrollView } from 'react-native-gesture-handler';
 const { StatusBarManager } = NativeModules;
 import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 import MessageItem from '../../components/MessageItem';
-
+import Feather from 'react-native-vector-icons/Feather';
 import {Colors} from '../../constants/iColors'; 
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
 
@@ -39,11 +39,73 @@ export default class MessageDetail extends React.Component {
        user:null,
        content:'',
        messages:[],
+
+       uploading:false,
+       uploadingText:'图片上传中'
     }
   }
   
 
-  send = async() => {
+  imageClick = async()=>{
+    if(this.state.user == null) {
+      Alert.alert('您尚未登录')
+      return;
+    }
+
+    const photoOptions = {
+      title:'请选择',
+      quality: 0.8,
+      cancelButtonTitle:'取消',
+      takePhotoButtonTitle:'拍照',
+      chooseFromLibraryButtonTitle:'选择相册',
+      allowsEditing: true,
+      noData: false,
+      storageOptions: {
+          skipBackup: true,
+          path: 'images'
+      }
+    };
+    let that = this;
+    ImagePicker.showImagePicker(photoOptions, async (response) => {
+      this.pickimage = true;
+      if (response.didCancel) {
+      }
+      else if (response.error) {
+         
+      }
+      else if (response.customButton) {
+      }
+      else {
+        this.setState({
+          uploading:true
+        })
+        const result = await that.uploadImage(response.uri);
+        this.setState({
+          uploading:false
+        })
+        if(result != null&& result.path) {
+          let content = "$pic$_#_path=" + result.path;
+          await this.send(content)
+        }
+        
+      }
+  });
+  }
+
+  uploadImage = async(uri) => {
+    let result;
+    let formData = new FormData();
+    let file = {uri: "file://" + uri, type: 'multipart/form-data', name: uri};
+    formData.append("multipartFiles",file);
+    try {
+      result = await Request.post3('uploadImage',formData,'formdata');
+    } catch (error) {
+      console.log(error)
+    }
+    return result;
+  }
+
+  send = async(content) => {
   
     if(this.state.user == null) {
       Alert.alert('您尚未登录')
@@ -53,17 +115,21 @@ export default class MessageDetail extends React.Component {
       const result = await Request.post('addMessage',{
         userid:this.state.user.id,
         touserid:this.person.id,
-        content:this.state.content
+        content:content
       });
       if(result.code == -2) {
         Alert.alert('您已被封禁')
+        return;
+      }
+      if(result.code == -3) {
+        Alert.alert('您与' + this.person.name + "还不是朋友，不能发送私信")
         return;
       }
       if(result.code != -1) {
         let message = {
           id:result.data.id,
           createdatetime:result.data.createdatetime,
-          content:this.state.content,
+          content:content,
           touserid:this.person.id
         }
          let messages = this.state.messages;
@@ -208,13 +274,16 @@ export default class MessageDetail extends React.Component {
               <TextInput value={this.state.content} onChangeText = {(content) => this.setState({content})} placeholder="" maxLength={50} multiline={true} underlineColorAndroid="transparent" ref={input => this.input = input} 
               style={{flex:1,textAlignVertical: 'top'}}/>
               </View>
-              {(this.state.content == '') && 
-              <View style={{marginLeft:10,width:px(70),alignItems:'center'}}>
+              <TouchableOpacity onPress={()=> {this.imageClick()}} style={[styles.format_btn]}>
+                <Feather name='image' size={22} color={'black'}/>
+              </TouchableOpacity>
+              {(this.state.content == '') &&
+              <View style={{width:px(70),alignItems:'center'}}>
                 <Text style={{color:Colors.GreyColor,fontSize:px(32),fontWeight:'bold'}}>发送</Text>
               </View>
               } 
               {(this.state.content != '') && 
-              <TouchableOpacity onPress={this.send} style={{marginLeft:10,width:px(70),alignItems:'center'}}>
+              <TouchableOpacity onPress={()=>{this.send(this.state.content)}} style={{width:px(70),alignItems:'center'}}>
                 <Text style={{color:Colors.TextColor,fontSize:px(32),fontWeight:'bold'}}>发送</Text>
               </TouchableOpacity>
               } 
@@ -222,6 +291,15 @@ export default class MessageDetail extends React.Component {
         </Animated.View>
 
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
+
+
+      <View style={{display:this.state.uploading?'flex':'none',position:this.state.uploading?'absolute':'relative',zIndex:9999,width:width,height:height,alignItems:'center',justifyContent:"center"}}>
+          <View style={{width:px(200),height:px(200),borderRadius:5,backgroundColor:"rgba(0,0,0,0.8)",alignItems:'center',justifyContent:"center"}}>
+            <ActivityIndicator  color='white'/>
+            <Text style={{marginTop:5,color:'white',fontSize:11}}>{this.state.uploadingText}</Text>
+          </View>
+      </View>
+
       </View>
     );
   }
@@ -241,5 +319,15 @@ const topStyles = StyleSheet.create({
     backgroundColor:'white',
     width: px(750),
     height: isIphoneX ? 34 : 0
+  }
+})
+
+
+const styles = StyleSheet.create({
+  format_btn:{
+      width:45,
+      height:45,
+      justifyContent:'center',
+      alignItems:'center'
   }
 })

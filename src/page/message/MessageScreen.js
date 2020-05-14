@@ -91,6 +91,30 @@ export default class MessageScreen extends React.Component {
                 }
                 messageList.unshift(messagebody);
               }
+            } else if(result.data[i].type == 4) { //添加好友消息
+              const message = result.data[i]
+              let j = 0;
+              for(;j < messageList.length;j++) {
+                if(messageList[j].touserid == 'addfriend') {
+                  let messagebody = messageList[j];
+                  messagebody.userread = 0; // 未读
+                  if(j != 0) {
+                    messageList.splice(j,1);
+                    messageList.unshift(messagebody);
+                   }
+                  break;
+                }
+              }
+              if(j == messageList.length) {
+                let messagebody = {
+                  userread :0,
+                  type:4,
+                  touserid:'addfriend',
+                  username:'好友申请',
+                  messages:[message]
+                }
+                messageList.unshift(messagebody);
+              }
             } else if(result.data[i].type == 1) {//站内信
               const message = {
                 id:result.data[i].id,
@@ -103,6 +127,8 @@ export default class MessageScreen extends React.Component {
               for(;j < messageList.length;j++) {
                 if(messageList[j].touserid == result.data[i].userid) {
                   let messagebody = messageList[j];
+                  messagebody.username = result.data[i].username;
+                  messagebody.avatar = result.data[i].avatarUrl;
                   messagebody.userread = 0; // 未读
                   messagebody.messages.push(message)
                   if(j != 0) {
@@ -161,6 +187,11 @@ export default class MessageScreen extends React.Component {
 
     } else if(item.type == 3) {
       that.props.navigation.navigate('ReportList')
+    } else if(item.type == 4) {
+      let messageList = this.state.messageList;
+      messageList[index].userread = 1;
+      await AsyncStorage.setItem('messageList_' + this.state.user.id, JSON.stringify(messageList));
+      that.props.navigation.navigate('FriendRequestList')
     }
     
   }

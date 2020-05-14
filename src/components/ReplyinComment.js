@@ -146,7 +146,7 @@ class ReplyinComment extends React.PureComponent {
         </TouchableOpacity>
         <View style={{flex:1,flexDirection:'column'}}>
         <View style={{display:'flex',flexDirection:'row',alignItems:"center"}}>
-          <Text style={{flex:1,fontSize:14,fontWeight:"bold",color:Colors.TextColor}}>{this.props.reply.username}</Text>
+          <Text style={{flex:1,fontSize:14,color:Colors.TextColor}}>{this.props.reply.username}</Text>
           {this.state.uped &&
           <TouchableOpacity onPress={()=>{this.delUp()}} style={{width:50,height:40,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
             <MaterialCommunityIcons name='thumb-up' size={19} color={Colors.TextColor}/>
@@ -166,7 +166,7 @@ class ReplyinComment extends React.PureComponent {
           }
 
         </View>
-        <Text style={{marginTop:10,lineHeight:18}}>{this.props.reply.content}
+        <Text style={{marginTop:10,lineHeight:18,color:'black'}}>{this.props.reply.content}
         {this.props.reply.replyid > -1 &&
           <Text>
             <Text style={{}}> //</Text>

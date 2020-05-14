@@ -230,8 +230,8 @@ export default class Search extends React.Component {
       </View>
       
       <View style={{marginHorizontal:15,height:40,flexDirection:'row',borderBottomWidth:0.5,borderBottomColor:'#f5f5f5'}}>
-        <TouchableOpacity onPress={()=> {this.changeIndex(1)}} style={[this.state.index == 1?{borderBottomColor:"black",borderBottomWidth:2}:{},{width:40,alignItems:"center"}]}><Text style={{marginTop:15}}>用户</Text></TouchableOpacity>
-        <TouchableOpacity onPress={()=> {this.changeIndex(2)}}  style={[this.state.index == 2?{borderBottomColor:"black",borderBottomWidth:2}:{},{marginLeft:20,width:40,alignItems:"center"}]}><Text style={{marginTop:15}}>帖子</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=> {this.changeIndex(1)}} style={[this.state.index == 1?{borderBottomColor:"black",borderBottomWidth:2}:{},{width:40,alignItems:"center"}]}><Text style={{marginTop:15,color:'black'}}>用户</Text></TouchableOpacity>
+        <TouchableOpacity onPress={()=> {this.changeIndex(2)}}  style={[this.state.index == 2?{borderBottomColor:"black",borderBottomWidth:2}:{},{marginLeft:20,width:40,alignItems:"center"}]}><Text style={{marginTop:15,color:'black'}}>帖子</Text></TouchableOpacity>
       </View>
      
        {

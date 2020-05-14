@@ -106,7 +106,7 @@ export default class Settings extends React.Component {
 
       <Header title='设置' isLeftTitle={true} />
 
-      <View style={{marginTop:10}}>
+      <View style={{marginTop:10,flex:1}}>
       {this.state.user != null &&
       <TouchableOpacity onPress={()=> {this.props.navigation.navigate('Edit')}} style={[styles.btn]}>
         <Text style={{color:'black',fontSize:15}}>编辑资料</Text>
@@ -137,6 +137,11 @@ export default class Settings extends React.Component {
         <Text style={{color:'red',fontSize:15}}>退出登录</Text>
       </TouchableOpacity>
       }
+      </View>
+
+      <View style={{marginBottom:40,alignItems:'center',justifyContent:"center"}}>
+        <Text style={{color:'#999',fontSize:13}}>COPYRIGHT©2019</Text>
+        <Text style={{color:'#999',fontSize:13,marginTop:3}}>苏州数字海科技有限公司</Text>
       </View>
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
       </View>

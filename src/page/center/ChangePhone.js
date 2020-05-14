@@ -165,8 +165,6 @@ export default class ChangePhone extends React.Component {
       <Header title={this.state.title} isLeftTitle={true} />
   
       <View style={{flex:1,paddingHorizontal:30,paddingTop:40}}>
-        <View style={{display:'none',borderRightColor:'#e1e1e1',position:'absolute',paddingRight:15,zIndex:1000,top:57,left:35,borderRightWidth:1,height:15,justifyContent:'center',alignItems:'center'}}><Text style={{fontSize:15}}>+86</Text></View>
-      
       <TextInput value={this.state.phone} onChangeText = {(phone) => this.setState({phone})} 
               placeholder={'请输入新手机号'}
               maxLength={20} underlineColorAndroid="transparent" ref={phoneinput => this.phoneinput = phoneinput} 

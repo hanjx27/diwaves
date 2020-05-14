@@ -72,7 +72,8 @@ export default class PredictScreen extends React.Component {
       predictContent:false, //预测界面显示
       selects:[0,1,0,0,0],
       choosepredicttext:'',
-      choosepredictcolor:this.colors[1]
+      choosepredictcolor:this.colors[1],
+      hide:0
     }
     this.chooseoption = 2;
 
@@ -121,8 +122,16 @@ export default class PredictScreen extends React.Component {
           hours = hours > 9 ? hours :'0' + hours
           let minutes = date.getMinutes();
           minutes = minutes > 9 ? minutes :'0' + minutes
+
+          let lastday = '';
+          if((date.getMonth() + 1) == datetexts[1] && date.getDate() == datetexts[2] && date.getHours() < 15) { //交易日是今天
+            lastday = showdate + " " + hours + ":" + minutes + "  "
+          } else {
+            lastday = showdate + " 15:00  "
+          }
+
           this.setState({
-            lastday:showdate + " " + hours + ":" + minutes + "  ",
+            lastday:lastday,
             lastdayprice:lastdayprice
           })
           if(result.length > 1) {
@@ -220,8 +229,15 @@ export default class PredictScreen extends React.Component {
         predictid:this.predict.id
       });
       if(result.code == 1) {
+        let predictsList = [];
+        for(let i = 0;i < result.data.length;i++) {
+          if(result.data[i].hide == 1 && (!this.state.user || (this.state.user.id != result.data[i].userid))) {
+            continue;
+          }
+          predictsList.push(result.data[i])
+        }
         this.setState({
-          predictsList:result.data
+          predictsList:predictsList
         })
       }
     } catch (error) {
@@ -252,19 +268,19 @@ export default class PredictScreen extends React.Component {
 
     let enddatetimes = this.predict.enddatetime.split(' ');
     let dates = enddatetimes[0].split('-');
-    if(this.predict.title.indexOf('日线') >= 0) {
-      this.endtext = '下一交易日' + enddatetimes[1].substring(0,5)
-    }  else{
-      this.endtext =  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ enddatetimes[1].substring(0,5)
-    }
+    //if(this.predict.title.indexOf('日线') >= 0) {
+     // this.endtext = '下一交易日' + enddatetimes[1].substring(0,5)
+    //}  else{
+    this.endtext =  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ enddatetimes[1].substring(0,5)
+    //}
 
     let settleendtimes = this.predict.settleendtime.split(' ');
     dates = settleendtimes[0].split('-');
-    if(this.predict.title.indexOf('日线') >= 0) {
-      this.settletext = '预计下一交易日' + settleendtimes[1].substring(0,5) + "揭晓结果"
-    }  else{
-      this.settletext =  '预计' +  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ settleendtimes[1].substring(0,5) + "揭晓结果"
-    }
+    //if(this.predict.title.indexOf('日线') >= 0) {
+    //  this.settletext = '预计下一交易日' + settleendtimes[1].substring(0,5) + "揭晓结果"
+    //}  else{
+    this.settletext =  '预计' +  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ settleendtimes[1].substring(0,5) + "揭晓结果"
+    //}
 
 
     if(this.predict) {
@@ -339,6 +355,7 @@ export default class PredictScreen extends React.Component {
   componentWillUnmount() {
     this.stockval && clearTimeout(this.stockval);
     if(this.props.navigation.state.params.refresh) {
+      console.log('refresh')
       this.props.navigation.state.params.refresh();
     }
   }
@@ -403,7 +420,8 @@ export default class PredictScreen extends React.Component {
         userid:this.state.user.id,
         comment:this.state.commentcontent,
         option:this.chooseoption,
-        silver:predictsilver
+        silver:predictsilver,
+        hide:this.state.hide
       });
       if(result.code == -4) {
         Alert.alert('您已经被封禁') //需要做统一处理
@@ -492,6 +510,12 @@ export default class PredictScreen extends React.Component {
     
   }
 
+  hideClick = () => {
+    this.setState({
+      hide:this.state.hide == 0?1:0
+    })
+  }
+
   render() {
   
     return (
@@ -505,14 +529,7 @@ export default class PredictScreen extends React.Component {
       <ScrollView style={{flex:1}}>
       <View style={{alignItems:"center",paddingHorizontal:15,paddingTop:15,paddingBottom:15,backgroundColor:'white',marginTop:7,borderBottomColor:'#e1e1e1',borderBottomWidth:0.5}}>
         
-        {!!this.state.lastday &&
-        <View style={{flexDirection:'row'}}>
-          <Text style={{fontSize:13}}>{this.state.lastday}</Text>
-          <Text style={[this.state.lastdayups > 0 ? {color:'red'}:{color:'green'},{fontWeight:'bold',fontSize:13}]}>{this.state.lastdayprice + ' ' + this.state.lastdayups + "%"}</Text>
-        </View>
-        }
-
-        <Text ellipsizeMode='tail' style={{maxWidth:width - 20,marginTop:10,fontWeight:'bold',color:'black',fontSize:17,lineHeight:21}} numberOfLines={2}>{this.state.predict.title}</Text>
+        <Text ellipsizeMode='tail' style={{maxWidth:width - 20,fontWeight:'bold',color:'black',fontSize:17,lineHeight:21}} numberOfLines={2}>{this.state.predict.title}</Text>
         
         <View style={{flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
         <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('日线')}}>
@@ -634,6 +651,13 @@ export default class PredictScreen extends React.Component {
             </Text>
           </View>
         }
+
+        {!!this.state.lastday &&
+        <View style={{marginTop:10,flexDirection:'row'}}>
+          <Text style={{fontSize:13}}>{'实时行情 ' + this.state.lastday}</Text>
+          <Text style={[this.state.lastdayups > 0 ? {color:'red'}:{color:'green'},{fontWeight:'bold',fontSize:13}]}>{this.state.lastdayprice + ' ' + this.state.lastdayups + "%"}</Text>
+        </View>
+        }
       </View>
 
         <View style={{paddingHorizontal:15}}>
@@ -663,7 +687,7 @@ export default class PredictScreen extends React.Component {
         <View
         style={{zIndex:100,
         backgroundColor:'white',width:width*0.7,position:'relative',borderRadius:7,overflow:"hidden",alignItems:"center"}}>
-          <TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={()=>{this.commentinput.blur()}}>
           
           <View style={{paddingTop:30,paddingBottom:15,alignItems:'center',justifyContent:"center",width:'100%',backgroundColor:Colors.TextColor}}>
             <Text style={{fontSize:16,color:'white',fontWeight:"bold"}}>预测将会 <Text style={{color:this.state.choosepredictcolor}}>{this.state.choosepredicttext}</Text></Text>
@@ -689,8 +713,8 @@ export default class PredictScreen extends React.Component {
             </View>
           </View>
           </TouchableWithoutFeedback>
-          <TouchableWithoutFeedback>
-          <View style={{paddingTop:20,width:'90%',alignItems:"center",flexDirection:"row",justifyContent:"center"}}>
+          <TouchableWithoutFeedback onPress={()=>{this.commentinput.blur()}}>
+          <View style={{paddingTop:20,width:'100%',paddingHorizontal:"5%",alignItems:"center",flexDirection:"row",justifyContent:"center"}}>
           <View style={{flex:1,height:px(130),paddingHorizontal:px(20),paddingVertical:px(10),borderRadius:3,backgroundColor:"#f7f7f7",}}>
               <TextInput value={this.state.commentcontent} onChangeText = {(commentcontent) => this.setState({commentcontent})} placeholder="发表你的评论，最多50字" maxLength={50} multiline={true} underlineColorAndroid="transparent" ref={commentinput => this.commentinput = commentinput} 
               style={{flex:1,textAlignVertical: 'top'}}/>
@@ -698,11 +722,23 @@ export default class PredictScreen extends React.Component {
           </View>
           </TouchableWithoutFeedback>
 
-          <TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={()=>{this.commentinput.blur()}}>
+          <View style={{width:'100%',flexDirection:"row",justifyContent:'flex-start',paddingLeft:10}}>
+          <TouchableOpacity onPress={this.hideClick} style={{justifyContent:"flex-end",marginTop:15,flexDirection:'row',alignItems:"center"}}>
+            <View style={this.state.hide == 0 ?styles.unselectwrap:styles.selectwrap}>
+              <View style={this.state.hide == 0 ?styles.unselectinner:styles.selectinner}></View>
+            </View>
+            <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>隐藏预测记录</Text>
+          </TouchableOpacity>
+          </View>
+          </TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={()=>{this.commentinput.blur()}}>
+          <View style={{width:'100%'}}>
           <View style={{paddingVertical:15,alignItems:"center",flexDirection:"row",justifyContent:"center"}}>
             <TouchableOpacity onPress={this.confirmPredict} style={{height:37,alignItems:"center",justifyContent:"center",borderBottomColor:Colors.TextColor,borderBottomWidth:0.5}}>
               <Text style={{fontWeight:'bold',fontSize:16,color:Colors.TextColor}}>确定预测</Text>
             </TouchableOpacity>
+          </View>
           </View>
           </TouchableWithoutFeedback>
           

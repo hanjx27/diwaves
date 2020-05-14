@@ -18,6 +18,7 @@ import Scanner from '../page/center/Scanner';
 import MyCommentsScreen from '../page/center/MyCommentsScreen';
 import MyPredictsScreen from '../page/center/MyPredictsScreen';
 import MyDraftsScreen from '../page/center/MyDraftsScreen';
+import MyCollectsScreen from '../page/center/MyCollectsScreen';
 import Settings from '../page/center/Settings';
 import Edit from '../page/center/Edit';
 import ChooseProvince from '../page/center/ChooseProvince';
@@ -25,6 +26,8 @@ import ChooseCity from '../page/center/ChooseCity';
 import MyFocusScreen from '../page/center/MyFocusScreen';
 import MyFansScreen from '../page/center/MyFansScreen';
 import ChangePhone from '../page/center/ChangePhone';
+import MyFriendsScreen from '../page/center/MyFriendsScreen';
+import PhoneContact from '../page/center/PhoneContact';
 //article
 import ArticleScreen from '../page/article/ArticleScreen';
 import PredictScreen from '../page/article/PredictScreen';
@@ -34,6 +37,7 @@ import RewardScreen from '../page/article/RewardScreen';
 //message
 import MessageScreen from '../page/message/MessageScreen';
 import ReportList from '../page/message/ReportList';
+import FriendRequestList from '../page/message/FriendRequestList';
 
 //wallet
 import WalletScreen from '../page/wallet/WalletScreen';
@@ -42,6 +46,8 @@ import TradeScreen from '../page/wallet/TradeScreen';
 //person 
 import PersonScreen from '../page/person/PersonScreen';
 import MessageDetail from '../page/message/MessageDetail';
+import PersonArticlesScreen from '../page/person/PersonArticlesScreen';
+import PersonCommentsScreen from '../page/person/PersonCommentsScreen';
 
 import {Colors} from '../constants/iColors';
 import Icon from 'react-native-vector-icons/AntDesign'
@@ -133,16 +139,21 @@ const MainStack = createStackNavigator(
     PredictScreen:PredictScreen,
     CategoryArticles:CategoryArticles,
     PersonScreen:PersonScreen,
+    PersonArticlesScreen:PersonArticlesScreen,
+    PersonCommentsScreen:PersonCommentsScreen,
     TradeScreen:TradeScreen,
     MyArticlesScreen:MyArticlesScreen,
     MessageDetail:MessageDetail,
     ReportList:ReportList,
+    FriendRequestList:FriendRequestList,
     Scanner:Scanner,
     MyCommentsScreen:MyCommentsScreen,
     MyPredictsScreen:MyPredictsScreen,
     MyDraftsScreen:MyDraftsScreen,
     MyFocusScreen:MyFocusScreen,
     MyFansScreen:MyFansScreen,
+    MyFriendsScreen:MyFriendsScreen,
+    PhoneContact:PhoneContact,
     Search:Search,
     Settings:Settings,
     Edit:Edit,
@@ -151,7 +162,9 @@ const MainStack = createStackNavigator(
     ChangePhone:ChangePhone,
 
     login:login,
-    WebContainer:WebContainer
+    WebContainer:WebContainer,
+
+    MyCollectsScreen:MyCollectsScreen
   },{
     initialRouteName: 'MainTabNavigator',
     headerMode: 'none',

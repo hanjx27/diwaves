@@ -239,7 +239,7 @@ export default class TemplatePage extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title='举报处理' isLeftTitle={true} />
+      <Header title='举报处理' />
       <FlatList
               style={{ marginTop: 0,paddingHorizontal:15 }}
               data={this.state.reports}

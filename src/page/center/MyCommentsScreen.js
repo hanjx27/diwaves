@@ -23,6 +23,7 @@ export default class MyCommentsScreen extends React.Component {
     this.pagecount = 15;
     this.endid = 0;
     this.user = props.navigation.getParam('user');
+    this.title = props.navigation.getParam('title');
     this.me = null;
     this.myUpedcomments = {};
     this.state = {
@@ -60,7 +61,8 @@ export default class MyCommentsScreen extends React.Component {
       const result = await Request.post('getMyComments',{
         pagecount:this.pagecount,
         endid:this.endid,
-        userid:this.user.id
+        userid:this.user.id,
+        push:this.title=='我的评论'?-1:1
       });
       if(result.code == 1) {
           let commentsList = this.state.commentsList
@@ -76,6 +78,7 @@ export default class MyCommentsScreen extends React.Component {
           })
           if(result.data.length < this.pagecount) {
               this.end = true
+              this.updateRedisCount(commentsList.length);
           } else {
             this.endid = result.data[result.data.length - 1].id
           }
@@ -85,6 +88,17 @@ export default class MyCommentsScreen extends React.Component {
     }
   }
 
+  updateRedisCount = async(count)=> {
+    try {
+      await Request.post('updateRedisCount',{
+        userid:this.user.id,
+        rediskey:this.title=='我的评论'?'commentcount':'pushcount',
+        count:count
+      });
+    } catch (error) {
+      console.log(error)
+    }
+  }
   _onEndReached =() => {
     if(this.flaglistloading) {
       return;
@@ -108,7 +122,7 @@ export default class MyCommentsScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={'我的评论'} isLeftTitle={false} />
+      <Header title={this.title} isLeftTitle={false} />
       {
           this.state.isLoading && (
             <View style={{ flex: 1, padding: 50 }}>

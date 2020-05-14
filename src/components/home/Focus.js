@@ -52,7 +52,22 @@ class Focus extends React.Component {
     }
     
     componentDidMount = async() =>{
-      
+      this.reportArticleHandler = DeviceEventEmitter.addListener('reportArticle', (data) => {
+        let contentsList = this.state.contentsList;
+          for(let i = 0;i < contentsList.length;i++) {
+            if(contentsList[i].content_type == 1 && contentsList[i].obj.id == data.id) {
+              contentsList.splice(i,1);
+              break;
+            } else if(contentsList[i].content_type == 3 && contentsList[i].obj.article.id == this.reportarticleid) {
+              contentsList.splice(i,1);
+              break;
+            } 
+          }
+          this.setState({
+            contentsList:contentsList
+          })
+      });
+
       this.loginHandler = DeviceEventEmitter.addListener("login", async(data) => {
         const user = await AsyncStorage.getItem('user');
         if(user != null && user != '') {
@@ -128,6 +143,7 @@ class Focus extends React.Component {
     componentWillUnmount = ()=> {
       this.loginHandler.remove();
       this.logoutHandler.remove();
+      this.reportArticleHandler.remove();
     }
 
     loadContentIndexs = async() => {
@@ -205,7 +221,7 @@ class Focus extends React.Component {
 
                   }
                  
-                } else if(indexs[i].objtype == 3) {
+                } else if(indexs[i].objtype == 3) {//取消了push这个类型，推送放在comment表里了
                   try {
                     if(this.reportList[result.data.pushs[indexs[i].objid].articleid] == 1) { //判断 push 的article是否被举报
                       continue;

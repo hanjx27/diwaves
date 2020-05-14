@@ -61,7 +61,6 @@ export default class MyDraftsScreen extends React.Component {
   }
 
   deleteDraft = async(draft) => {
-    console.log(draft)
     try {
       let draftsList = this.state.draftsList;
       for(let i = 0;i < draftsList.length;i++) {

@@ -14,6 +14,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {WToast,WSnackBar,WModal} from 'react-native-smart-tip'
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import AntDesign from 'react-native-vector-icons/AntDesign';
+import { ScrollView } from 'react-native-gesture-handler';
 export default class CenterScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -27,6 +28,8 @@ export default class CenterScreen extends React.Component {
      user:null,
      status:null,
      qrVisible:false,
+
+     collect:0
     }
   }
 
@@ -90,6 +93,7 @@ export default class CenterScreen extends React.Component {
     }
   }
   getPersonStatus = async(id) => {
+
     try {
       const result = await Request.post('getUserStatus',{
         id:id
@@ -134,6 +138,10 @@ export default class CenterScreen extends React.Component {
     } catch (error) {
       console.log(error)
     }
+  }
+
+  goMyfriends =()=>{
+    this.props.navigation.navigate('MyFriendsScreen');
   }
 
   goMyfocus = ()=> {
@@ -223,6 +231,7 @@ export default class CenterScreen extends React.Component {
     let comment = require('../../images/center/comment.png');
     let predict = require('../../images/center/predict.png');
     let caogao = require('../../images/center/caogao.png');
+    let collect = require('../../images/center/collect.jpg');
     let arrow = require('../../images/center/arrow.png');
     let logo = require('../../images/comment.png');
 
@@ -241,7 +250,7 @@ export default class CenterScreen extends React.Component {
     
     return (
       
-      <View style={{backgroundColor:'#f7f7f7',flex:1}}>
+      <ScrollView style={{backgroundColor:'#f7f7f7',flex:1}}>
         
         {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
         {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
@@ -308,6 +317,20 @@ export default class CenterScreen extends React.Component {
               <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
             </View>
           </TouchableOpacity>
+          <TouchableOpacity onPress={this.nologin} style={{alignItems:'center',flexDirection:'row'}}>
+          <Image style={{width:22,height:22}} source={recommend}></Image>
+          <View style={{marginLeft:10,flex:1,height:44,flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,justifyContent:"space-between",alignItems:"center"}}>
+              <Text style={{fontSize:15}}>推荐（0）</Text>
+            <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
+          </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={this.nologin}  style={{alignItems:'center',flexDirection:'row'}}>
+            <Image style={{width:22,height:22}} source={collect}></Image>
+            <View style={{marginLeft:10,flex:1,height:44,borderBottomColor:'#eee',borderBottomWidth:0.5,flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
+                <Text style={{fontSize:15}}>收藏（0）</Text>
+              <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity onPress={this.nologin}  style={{alignItems:'center',flexDirection:'row'}}>
             <Image style={{width:22,height:22}} source={caogao}></Image>
             <View style={{marginLeft:10,flex:1,height:44,flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
@@ -355,22 +378,27 @@ export default class CenterScreen extends React.Component {
               </View>
               }
             </View>
+            <View style={{marginTop:10}}>
+            <Text style={styles.greytext}>{'数字号：' + this.state.user.wxname}</Text>
+            </View>  
             <View style={{marginTop:10,flexDirection:'row',alignItems:'center',height:30,justifyContent:'space-between'}}>
               <View style={{height:30,flexDirection:'row',alignItems:'center'}}>
                 <Text style={styles.greytext}>{'位置 : ' + (!!this.state.user.province?(this.state.user.province + "  " + this.state.user.city):'暂无')}</Text>
               </View>
               {this.state.status &&
-              <View style={{marginRight:20,height:30,marginLeft:20,flexDirection:'row',alignItems:'center'}}>
+              <View style={{marginRight:10,height:30,marginLeft:20,flexDirection:'row',alignItems:'center'}}>
                 <TouchableOpacity onPress={this.goMyfocus} style={{height:30,flexDirection:'row',alignItems:'center',}}><Text style={styles.greytext}>关注：</Text><Text style={styles.numtext}>{this.state.status.focuscount}</Text></TouchableOpacity>
                 <Text style={{color:'#e1e1e1',fontSize:10}}>{'   |   '}</Text>
                 <TouchableOpacity onPress={this.goMyfans} style={{height:30,flexDirection:'row',alignItems:'center',}}><Text style={styles.greytext}>粉丝：</Text><Text style={styles.numtext}>{this.state.status.fanscount}</Text></TouchableOpacity>
+                <Text style={{color:'#e1e1e1',fontSize:10}}>{'   |   '}</Text>
+                <TouchableOpacity onPress={this.goMyfriends} style={{height:30,flexDirection:'row',alignItems:'center'}}><Text style={styles.greytext}>朋友</Text></TouchableOpacity>
               </View>
               }
             </View>
             
   
           {this.state.status &&
-          <View style={{marginTop:10,paddingBottom:7,paddingTop:15,marginBottom:10,borderTopColor:'#eee',borderTopWidth:0.5}}>
+          <View style={{marginTop:10,paddingBottom:0,paddingTop:15,borderTopColor:'#eee',borderTopWidth:0.5}}>
             <View style={{flexDirection:'row',backgroundColor:"#81c6fb",borderRadius:10}}>
               <View style={{flex:1,paddingTop:10,alignItems:'center'}}>
                 <Text style={styles.whitetext}>今日获阅读</Text>
@@ -386,8 +414,18 @@ export default class CenterScreen extends React.Component {
               </View>
             </View>
           </View>
-           }
-           
+          }
+
+          {this.state.status != null &&
+            <View style={{flexDirection:"row",alignItems:'center',paddingVertical:10}}>
+              <View style={{paddingVertical:5,alignItems:"center",justifyContent:"center",flex:1,borderRightWidth:0.5,borderRightColor:"#eee"}}>
+                <Text style={{color:'#999'}}>创作等级：<Text style={{color:Colors.TextColor}}>{this.state.status.create_level}</Text></Text>
+              </View>
+              <View style={{paddingVertical:5,alignItems:"center",justifyContent:"center",flex:1}}>
+                <Text style={{color:'#999'}}>预测等级：<Text style={{color:Colors.TextColor}}>{this.state.status.predict_level}</Text></Text>
+              </View>
+            </View>
+          }
           </View>
          
           {!!this.state.user.avatar &&
@@ -417,7 +455,7 @@ export default class CenterScreen extends React.Component {
             <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={()=> {this.props.navigation.navigate('MyCommentsScreen',{user:this.state.user})}}  style={{alignItems:'center',flexDirection:'row'}}>
+        <TouchableOpacity onPress={()=> {this.props.navigation.navigate('MyCommentsScreen',{user:this.state.user,title:'我的评论'})}}  style={{alignItems:'center',flexDirection:'row'}}>
           <Image style={{width:22,height:22}} source={comment}></Image>
           <View style={{marginLeft:10,flex:1,height:44,flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,justifyContent:"space-between",alignItems:"center"}}>
               <Text style={{fontSize:15}}>评论（{this.state.status.commentcount}）</Text>
@@ -431,13 +469,22 @@ export default class CenterScreen extends React.Component {
             <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
           </View>
         </TouchableOpacity>
-        {false && <View style={{alignItems:'center',flexDirection:'row'}}>
+        <TouchableOpacity onPress={()=> {this.props.navigation.navigate('MyCommentsScreen',{user:this.state.user,title:'我的推荐'})}} style={{alignItems:'center',flexDirection:'row'}}>
           <Image style={{width:22,height:22}} source={recommend}></Image>
           <View style={{marginLeft:10,flex:1,height:44,flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,justifyContent:"space-between",alignItems:"center"}}>
               <Text style={{fontSize:15}}>推荐（{this.state.status.pushcount}）</Text>
             <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
           </View>
-        </View>}
+        </TouchableOpacity>
+        
+        <TouchableOpacity onPress={()=> {this.props.navigation.navigate('MyCollectsScreen',{user:this.state.user})}} style={{alignItems:'center',flexDirection:'row'}}>
+            <Image style={{width:22,height:22}} source={caogao}></Image>
+            <View style={{marginLeft:10,flex:1,height:44,flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,justifyContent:"space-between",alignItems:"center"}}>
+                <Text style={{fontSize:15}}>收藏（{this.state.status.collectcount}）</Text>
+              <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
+            </View>
+          </TouchableOpacity>
+
         <TouchableOpacity onPress={()=> {this.props.navigation.navigate('MyDraftsScreen',{user:this.state.user})}} style={{alignItems:'center',flexDirection:'row'}}>
           <Image style={{width:22,height:22}} source={caogao}></Image>
           <View style={{marginLeft:10,flex:1,height:44,flexDirection:'row',justifyContent:"space-between",alignItems:"center"}}>
@@ -467,7 +514,7 @@ export default class CenterScreen extends React.Component {
       </TouchableWithoutFeedback>
       </Modal>
       }
-      </View>
+      </ScrollView>
     );
   }
 }
@@ -486,12 +533,12 @@ const topStyles = StyleSheet.create({
 })
 const styles = StyleSheet.create({
   greytext:{
-    fontSize:13,
+    fontSize:14,
     color:Colors.sTextColor
   },
   numtext:{
     color:Colors.TextColor,
-    fontSize:15,
+    fontSize:16,
     fontWeight:'bold'
   },
   whitetext:{

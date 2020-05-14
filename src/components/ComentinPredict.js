@@ -15,7 +15,7 @@ import {Colors} from '../constants/iColors';
 const {width,height} =  Dimensions.get('window');
 import { baseimgurl } from '../utils/Global';
 import Datetime from '../components/Datetime';
-
+import AntDesign from 'react-native-vector-icons/AntDesign';
 import { withNavigation } from 'react-navigation';
 
 class ComentinPredict extends React.PureComponent {
@@ -71,13 +71,19 @@ class ComentinPredict extends React.PureComponent {
         <View style={{flex:1,flexDirection:'column'}}>
         <View style={{display:'flex',flexDirection:'row',alignItems:"center"}}>
           <TouchableOpacity onPress={this.goPerson} style={{flex:1}}>
-            <Text style={{fontSize:14,fontWeight:"bold",color:Colors.TextColor}}>{this.userpredict.username}</Text>
+            <Text style={{fontSize:14,color:Colors.TextColor}}>{this.userpredict.username}</Text>
           </TouchableOpacity>
         </View>
         <Text style={{marginTop:10}}>预测：{userpredicttext}</Text>
         <Text style={{marginTop:5,lineHeight:18}}>{this.userpredict.comment}</Text>
-        <View style={{flexDirection:'row',marginTop:10}}>
+        <View style={{flexDirection:'row',marginTop:10,alignItems:"center"}}>
           <Datetime style={{fontSize:13,color:Colors.GreyColor}} datetime={this.userpredict.createdatetime}></Datetime>
+          {this.userpredict.hide == 1 &&
+            <View style={{flexDirection:'row',alignItems:'center',marginLeft:10,backgroundColor:'#e6f2fd',paddingHorizontal:7,paddingVertical:5,borderRadius:5}}>
+              <AntDesign name='pushpino' size={11} color={'#1787fb'}/>
+              <Text style={{marginLeft:2,color:'#1787fb',fontSize:11}}>隐藏预测记录</Text>
+            </View>
+          }
         </View>
       </View>
       </View>

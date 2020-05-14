@@ -10,8 +10,8 @@ const { StatusBarManager } = NativeModules;
 import AsyncStorage from '@react-native-community/async-storage';
 import { Request } from '../../utils/request';
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
-import MyPredict from '../../components/MyPredict';
-export default class MyPredictsScreen extends React.Component {
+import Article from '../../components/Article';
+export default class MyCollectsScreen extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
       headerBackTitle: null,
@@ -24,42 +24,45 @@ export default class MyPredictsScreen extends React.Component {
     this.endid = 0;
     this.user = props.navigation.getParam('user');
     this.state = {
-      predictsList:[],
+      articlesList:[],
       isLoading:true
     }
+
     this.flaglistloading = false;
   }
   
 
   
 
-  componentWillMount = async() => {
-    this.getUserPredicts();
-
+  componentWillMount() {  
   }
 
   componentDidMount= async() => {
     
+
+    this.getUserArticles();
   }
 
-  getUserPredicts = async() => {
+  getUserArticles = async() => {
     try {
-      const result = await Request.post('getMyPredicts',{
+      const result = await Request.post('getMyCollects',{
         pagecount:this.pagecount,
         endid:this.endid,
         userid:this.user.id
       });
       if(result.code == 1) {
-          let predictsList = this.state.predictsList
-          
-          predictsList = predictsList.concat(result.data)
+          let articles = this.state.articlesList
+          for(let i = 0;i < result.data.length;i++) {
+              let article = result.data[i]
+              articles.push(article)
+          }
           this.setState({
-            predictsList:predictsList,
+            articlesList:articles,
             isLoading:false
           })
           if(result.data.length < this.pagecount) {
               this.end = true
-              this.updateRedisCount(predictsList.length);
+              this.updateRedisCount(articles.length);
           } else {
             this.endid = result.data[result.data.length - 1].id
           }
@@ -73,7 +76,7 @@ export default class MyPredictsScreen extends React.Component {
     try {
       await Request.post('updateRedisCount',{
         userid:this.user.id,
-        rediskey:'predictcount',
+        rediskey:'collectcount',
         count:count
       });
     } catch (error) {
@@ -81,8 +84,8 @@ export default class MyPredictsScreen extends React.Component {
     }
   }
 
+
   _onEndReached =() => {
-    console.log('reach end')
     if(this.flaglistloading) {
       return;
     }
@@ -90,7 +93,7 @@ export default class MyPredictsScreen extends React.Component {
       return;
     }
     this.flaglistloading = true;
-    this.getUserPredicts();
+    this.getUserArticles();
     this.flaglistloading = false;
   }
 
@@ -105,7 +108,7 @@ export default class MyPredictsScreen extends React.Component {
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-      <Header title={'预测记录'} />
+      <Header title={'我的收藏'} isLeftTitle={false} />
       {
           this.state.isLoading && (
             <View style={{ flex: 1, padding: 50 }}>
@@ -115,17 +118,17 @@ export default class MyPredictsScreen extends React.Component {
         }
       <FlatList
               style={{ marginTop: 0 }}
-              data={this.state.predictsList}
+              data={this.state.articlesList}
               onEndReachedThreshold={1}
               onEndReached={this._onEndReached}
               renderItem={
                 ({ item }) => {
-                  return (<MyPredict mypredict={item}></MyPredict>)
+                  return (<Article article={item}></Article>)
                 }
               }
               
               ItemSeparatorComponent={this._separator}
-              keyExtractor={(item, index) => item.userpredictid} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+              keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
       />
       {Platform.OS === 'ios' && <View style={topStyles.footerBox}></View>}
       </View>

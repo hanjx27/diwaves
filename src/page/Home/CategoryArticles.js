@@ -38,6 +38,7 @@ export default class CategoryArticles extends React.Component {
 
     this.reportList = {}
 
+    this.refreshPredictid = 1;
     this.state = {
        item:null,
        articlesList:[],
@@ -67,7 +68,7 @@ export default class CategoryArticles extends React.Component {
       this.reportList = JSON.parse(reportListstr)
     }
     
-    if(this.lastdir.title.indexOf('上证' >= 0) || this.lastdir.title.indexOf('深证' >= 0) || this.lastdir.title.indexOf('创业板指' >= 0)) {
+    if(this.lastdir && (this.lastdir.title.indexOf('上证' >= 0) || this.lastdir.title.indexOf('深证' >= 0) || this.lastdir.title.indexOf('创业板指' >= 0))) {
       await this.loadPredict('日线');
     }
     await this.loadArticleIds();
@@ -78,13 +79,16 @@ export default class CategoryArticles extends React.Component {
         })
       }
     }
+
+    this.flaglistloading = true;
     await this.loadArticles();
+    this.flaglistloading = false;
   }
 
   loadArticleIds = async() => {
     console.log(this.lastdir)
     const result = await Request.post('articleIDsForApp',{
-      dir:this.lastdir.id,
+      dir:this.dir.title == '资讯' ? this.subdir.id : this.lastdir.id,
       sort:this.state.sort
     });
     if(result.code == 1) {
@@ -173,10 +177,11 @@ export default class CategoryArticles extends React.Component {
           if(articlesList.length > 0 && articlesList[0].type == 2) {
             articlesList.splice(0,1);
           }
+          this.refreshPredictid = this.refreshPredictid == 1?2:1
 
           let articlelistnew = [];
           result.data.type = 2;
-          result.data.id = result.data.predict.id;
+          result.data.id = this.refreshPredictid + "" + result.data.predict.id;
           articlelistnew.push(result.data)
           articlelistnew = articlelistnew.concat(articlesList)
           this.setState({
@@ -214,12 +219,25 @@ export default class CategoryArticles extends React.Component {
     }
   }
 
-  componentDidMount = () => {
+  componentDidMount = async() => {
+    this.reportArticleHandler = DeviceEventEmitter.addListener('reportArticle', (data) => {
+      let articlesList = this.state.articlesList;
+        for(let i = 0;i < articlesList.length;i++) {
+          if(articlesList[i].type == 1 && articlesList[i].id == data.id) {
+            articlesList.splice(i,1);
+            break;
+          }
+        }
+        this.setState({
+          articlesList:articlesList
+        })
+    });
   }
 
 
   componentWillUnmount() {
-    DeviceEventEmitter.emit('someone_play', { id: -1});
+    //DeviceEventEmitter.emit('someone_play', { id: -1});
+    this.reportArticleHandler.remove();
   }
 
   changeSort = async(sort) => {
@@ -328,7 +346,14 @@ export default class CategoryArticles extends React.Component {
 
   
   render() {
-    let title = this.title != null ? this.title : (this.dir.title + '/' + this.subdir.title + (this.lastdir.title != '不限'?('/' +  this.lastdir.title):''))
+    let title = '';
+    if(this.title != null) {
+      title = this.title;
+    } else if(this.dir.title == '资讯') {
+      title = '资讯' + (this.subdir.title != '不限' ? ('/' + this.subdir.title) : '');
+    } else if(this.dir.title == '财经') {
+      title = this.dir.title + '/' + this.subdir.title + (this.lastdir.title != '不限'?('/' +  this.lastdir.title):'')
+    }
     return (
       <View style={{flex: 1,flexDirection:'column',backgroundColor: 'white'}}>
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}

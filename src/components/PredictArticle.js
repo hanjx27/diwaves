@@ -32,7 +32,7 @@ Date.prototype.Format = function (fmt) {
   return fmt;
 }
 
-class PredictArticle extends React.PureComponent {
+class PredictArticle extends React.Component {
   constructor(props) {
     super(props);
     this.predict= this.props.predict;
@@ -52,19 +52,19 @@ class PredictArticle extends React.PureComponent {
 
     let enddatetimes = this.predict.enddatetime.split(' ');
     let dates = enddatetimes[0].split('-');
-    if(this.predict.title.indexOf('日线') >= 0) {
-      this.endtext = '下一交易日' + enddatetimes[1].substring(0,5)
-    }  else{
-      this.endtext =  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ enddatetimes[1].substring(0,5)
-    }
+    //if(this.predict.title.indexOf('日线') >= 0) {
+    //this.endtext = '下一交易日' + enddatetimes[1].substring(0,5)
+    //}  else{
+    this.endtext =  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ enddatetimes[1].substring(0,5)
+    //}
 
     let settleendtimes = this.predict.settleendtime.split(' ');
     dates = settleendtimes[0].split('-');
-    if(this.predict.title.indexOf('日线') >= 0) {
-      this.settletext = '预计下一交易日' + settleendtimes[1].substring(0,5) + "揭晓结果"
-    }  else{
-      this.settletext =  '预计' +  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ settleendtimes[1].substring(0,5) + "揭晓结果"
-    }
+    //if(this.predict.title.indexOf('日线') >= 0) {
+    //this.settletext = '预计下一交易日' + settleendtimes[1].substring(0,5) + "揭晓结果"
+    //}  else{
+    this.settletext =  '预计' +  parseInt(dates[1]) + '月' + parseInt(dates[2]) +'日 '+ settleendtimes[1].substring(0,5) + "揭晓结果"
+    //}
 
     this.state = {
       lefttotalseconds: 0,
@@ -139,23 +139,26 @@ class PredictArticle extends React.PureComponent {
           let showdate = parseInt(datetexts[1]) + '月' + parseInt(datetexts[2]) +'日'
           let lastdayprice = lastdayresultitems[2]
           lastdayprice = Math.round(lastdayprice * 100) / 100;
-          /*if(lastdayprice.split('.').length  == 2 && lastdayprice.split('.')[1].length > 2) {
-            lastdayprice = lastdayprice.substring(0,lastdayprice.length - 2);
-          }*/
+          
           let date = new Date();
           let hours = date.getHours();
           hours = hours > 9 ? hours :'0' + hours
           let minutes = date.getMinutes();
           minutes = minutes > 9 ? minutes :'0' + minutes
+          let lastday = '';
+          if((date.getMonth() + 1) == datetexts[1] && date.getDate() == datetexts[2] && date.getHours() < 15) { //交易日是今天
+            lastday = showdate + " " + hours + ":" + minutes + "  "
+          } else {
+            lastday = showdate + " 15:00  "
+          }
           this.setState({
-            lastday:showdate + " " + hours + ":" + minutes + "  ",
+            lastday:lastday,
             lastdayprice:lastdayprice
           })
           if(result.length > 1) {
             let secondlastdayresult = items[items.length - 2];
             let secondlastdayresultitems = secondlastdayresult.split(",");
             let lastdayups = ((lastdayresultitems[2] - secondlastdayresultitems[2]) / secondlastdayresultitems[2] * 100).toFixed(2)
-            //console.log(lastdayups)
             this.setState({
               lastdayups:lastdayups
             })
@@ -214,6 +217,7 @@ class PredictArticle extends React.PureComponent {
 
 
   componentDidMount() {
+    
     let nowtime = new Date().getTime();
     let end = this.getDatetime(this.predict.enddatetime);
     let endtime = end.getTime();
@@ -223,19 +227,6 @@ class PredictArticle extends React.PureComponent {
         over:1
       })
     } else {
-      /*let hours = Math.floor(lefttotalseconds / (3600 * 1000));
-      hours = hours > 9 ? hours :'0' + hours
-      // 分
-      const leave2 = lefttotalseconds % (3600 * 1000);
-      let minutes = Math.floor(leave2 / (60 * 1000));
-      minutes = minutes > 9 ? minutes :'0' + minutes
-      // 秒
-      const leave3 = leave2 % (60 * 1000);
-      let seconds = Math.round(leave3 / 1000);
-      seconds = seconds > 9 ? seconds :'0' + seconds
-      this.setState({lefttotalseconds:lefttotalseconds,lefthour:hours,leftminute:minutes,leftsecond:seconds})
-
-      setTimeout(this.secondcount,990)*/
     }
   }
 
@@ -276,17 +267,14 @@ class PredictArticle extends React.PureComponent {
   }
 
   render() {
-    
+    this.userpredict = this.props.userpredict;
+    this.state.userpredict = this.userpredict;
+    this.predict= this.props.predict;
     return (
       <TouchableOpacity onPress={() => {this.props.navigation.navigate('PredictScreen',{refresh:this.refresh,predict:this.predict,userpredict:this.userpredict,dir:this.dir,dirname:this.dirname})}} 
       style={{alignItems:"center",paddingHorizontal:15,paddingTop:5,paddingBottom:15,backgroundColor:'white',marginTop:5,borderBottomColor:'#e1e1e1',borderBottomWidth:0.5}}>
-        {!!this.state.lastday &&
-        <View style={{flexDirection:'row'}}>
-          <Text style={{fontSize:13}}>{this.state.lastday}</Text>
-          <Text style={[this.state.lastdayups > 0 ? {color:'red'}:{color:'green'},{fontWeight:'bold',fontSize:13}]}>{this.state.lastdayprice + ' ' + this.state.lastdayups + "%"}</Text>
-        </View>
-        }
-        <Text ellipsizeMode='tail' style={{maxWidth:width - 20,marginTop:10,fontWeight:'bold',color:'black',fontSize:17,lineHeight:21}} numberOfLines={2}>{this.predict.title}</Text>
+        
+        <Text ellipsizeMode='tail' style={{maxWidth:width - 20,fontWeight:'bold',color:'black',fontSize:17,lineHeight:21}} numberOfLines={2}>{this.predict.title}</Text>
         
         <View style={{flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
         <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:35}} onPress={()=> {this.changetype('日线')}}>
@@ -388,6 +376,13 @@ class PredictArticle extends React.PureComponent {
             {this.userpredict.state == 3 && <Text>，没有猜中结果</Text>}
             </Text>
           </View>
+        }
+
+        {!!this.state.lastday &&
+        <View style={{flexDirection:'row',marginTop:10}}>
+          <Text style={{fontSize:13}}>{'实时行情 ' + this.state.lastday}</Text>
+          <Text style={[this.state.lastdayups > 0 ? {color:'red'}:{color:'green'},{fontWeight:'bold',fontSize:13}]}>{this.state.lastdayprice + ' ' + this.state.lastdayups + "%"}</Text>
+        </View>
         }
       </TouchableOpacity>
     )

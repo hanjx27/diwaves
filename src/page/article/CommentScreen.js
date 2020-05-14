@@ -348,7 +348,7 @@ export default class CommentScreen extends React.Component {
             <Text style={{fontSize:14,fontWeight:"bold",color:Colors.TextColor}}>{this.comment.username}</Text>
           </View>
           {(this.state.user == null || this.state.user.id != this.comment.userid) &&
-              <FocusBtn focususerid={this.article.userid}></FocusBtn>
+              <FocusBtn focususerid={this.comment.userid}></FocusBtn>
           }
         </TouchableOpacity>
         <Text style={{marginTop:10,lineHeight:18,color:'black'}}>{this.comment.content}</Text>

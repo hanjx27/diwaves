@@ -238,6 +238,14 @@ class Article_comment extends React.PureComponent {
     !!this.props.report && this.props.report(this.props.commenthome.id,this.props.commenthome.content,this.props.commenthome.userid)
   }
 
+  goCategoryArticle =() => {
+    if(this.article.parentdir == 1) { //资讯
+      this.props.navigation.push('CategoryArticles',{title:this.article.dirname,dir:{id:1,title:'资讯'},subdir:{id:this.article.dir,title:this.article.dirname.split('/')[1]},lastdir:null})
+    } else {
+      this.props.navigation.push('CategoryArticles',{title:this.article.dirname,dir:{id:2,title:'财经'},subdir:{id:18,title:'沪深'},lastdir:{id:this.article.dir,title:this.article.dirname.split('/')[2]}})
+    }
+  }
+
   render() {
     console.log('render article_comment:' + this.props.commenthome.id)
     const push = require('../images/push.png')
@@ -250,7 +258,7 @@ class Article_comment extends React.PureComponent {
     let reward = require('../images/article/u1463.png')
     let more = require('../images/more.png');
     return (
-      <View style={{flexDirection:'row',paddingHorizontal:15,paddingTop:15,paddingBottom:0,backgroundColor:'white',marginTop:7,borderBottomColor:'#E9E9E9',borderBottomWidth:0.4}}>
+      <View style={{flexDirection:'row',paddingHorizontal:15,paddingTop:15,paddingBottom:15,backgroundColor:'white',marginTop:7,borderBottomColor:'#E9E9E9',borderBottomWidth:0.4}}>
         <TouchableOpacity style={{width:38,height:38,marginRight:10}} onPress={this.goPerson}>
           <Image style={{width:38,height:38,borderRadius:19}} source={{uri:(baseimgurl + this.props.commenthome.avatarUrl)}}></Image>
         </TouchableOpacity>
@@ -260,9 +268,42 @@ class Article_comment extends React.PureComponent {
             <Text style={{fontSize:15,fontWeight:"bold",color:Colors.TextColor,marginBottom:5}}>{this.props.commenthome.username}</Text>
             <Datetime style={{fontSize:12,color:Colors.GreyColor,marginRight:10}} datetime={this.props.commenthome.createdatetime}></Datetime>
           </TouchableOpacity>
+
+          <View style={{flexDirection:'row',alignItems:'center',paddingRight:10}}>
+          <TouchableOpacity onPress={()=> this.props.navigation.navigate('PushScreen',{article:this.article,pushuserid:this.props.commenthome.pushid==-1?-1:this.props.commenthome.userid})} 
+              style={{width:50,height:40,alignItems:'center',justifyContent:"center",flexDirection:'row'}}>
+              <Image style={{width:19,height:19}} source={push}></Image>
+              <Text style={{fontWeight:'bold',marginLeft:3,color:'#555',fontSize:14}}>推</Text>
+          </TouchableOpacity>
+            {this.props.report &&
+          <TouchableOpacity onPress={this.report} style={{width:30,height:40,alignItems:'flex-end',justifyContent:'center'}}>
+             <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:px(3),borderRadius:3,backgroundColor:'#f3f3f3'}}>
+            <AntDesign name='close' size={9} color={'#888'}/>
+            </View>
+          </TouchableOpacity>
+          }
+          </View>
+        </View>
+        {!!this.props.commenthome.content &&
+        <Text ellipsizeMode='tail' style={{marginTop:10,color:'black',fontSize:16,lineHeight:21}} numberOfLines={2}>{this.props.commenthome.content}</Text>
+        }
+        {this.props.commenthome.pic != null && this.props.commenthome.pic != '' &&
+          <AutoSizeImage style={{marginTop:10}} maxWidth={width*0.5} source={{uri:baseimgurl + this.props.commenthome.pic}}></AutoSizeImage>
+        }
+        <ThumbArticle style={{width:width - 100,marginTop:15}} article={this.article} pushuserid={this.props.commenthome.pushid==-1?-1:this.props.commenthome.userid}></ThumbArticle>
+        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:"center",marginTop:15}}>
+          <TouchableOpacity onPress={()=>{this.goCategoryArticle()}} style={{flexDirection:'row',borderRadius:3,overflow:'hidden'}}>
+              <View style={{width:28,height:28,backgroundColor:'#efefef',justifyContent:'center',alignItems:'center'}}>
+                <Image source={u82} resizeMode='stretch' style={{width:14,height:14}}></Image>
+              </View>
+              <View style={{borderRadius:3,overflow:'hidden',flexDirection:'row',height:28,backgroundColor:'#f9f9f9',alignItems:'center',paddingHorizontal:5}}>
+                <Text ellipsizeMode={'tail'} numberOfLines={1} style={{maxWidth:width-150,fontSize:12,color:Colors.sTextColor}}>{this.article.dirname}</Text>
+                <Image source={u84} resizeMode='stretch' style={{width:14,height:14}}></Image>
+              </View>
+          </TouchableOpacity>
           <View style={{flexDirection:'row',alignItems:'center',paddingRight:10}}>
             <TouchableOpacity style={{marginRight:15}} onPress={this.goReply}>
-            <View style={{paddingVertical:6,paddingHorizontal:12,borderRadius:12,backgroundColor:'#f7f7f7'}}><Text style={{fontSize:12,color:'#222'}}>{this.state.replycount == 0 ? "" : this.state.replycount}回复</Text></View>
+            <View style={{paddingVertical:4,paddingHorizontal:12,borderRadius:20,backgroundColor:'#f7f7f7'}}><Text style={{fontSize:12,color:'#222'}}>{this.state.replycount == 0 ? "" : this.state.replycount}回复</Text></View>
             </TouchableOpacity>
             {this.state.uped &&
             <TouchableOpacity onPress={()=>{this.delUp()}} style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
@@ -281,56 +322,7 @@ class Article_comment extends React.PureComponent {
               }
               </TouchableOpacity>
             }
-
-            <TouchableOpacity onPress={()=> this.props.navigation.navigate('PushScreen',{article:this.article,pushuserid:this.props.commenthome.pushid==-1?-1:this.props.commenthome.userid})} style={{width:0,height:36,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
-              <Image style={{width:0,height:19}} source={push}></Image>
-            </TouchableOpacity>
           </View>
-        </View>
-        {!!this.props.commenthome.content &&
-        <Text ellipsizeMode='tail' style={{marginTop:10,color:'black',fontSize:16,lineHeight:21}} numberOfLines={2}>{this.props.commenthome.content}</Text>
-        }
-        {this.props.commenthome.pic != null && this.props.commenthome.pic != '' &&
-          <AutoSizeImage style={{marginTop:10}} maxWidth={width*0.5} source={{uri:baseimgurl + this.props.commenthome.pic}}></AutoSizeImage>
-        }
-        <ThumbArticle style={{width:width - 100,marginTop:15}} article={this.article} pushuserid={this.props.commenthome.pushid==-1?-1:this.props.commenthome.userid}></ThumbArticle>
-        <TouchableOpacity onPress={()=>{this.props.navigation.navigate('CategoryArticles',{title:this.article.dirname,lastdir:{id:this.article.dir,title:this.article.dirname.split('/')[2]}})}} style={{flexDirection:'row',marginTop:15,borderRadius:3,overflow:'hidden'}}>
-            <View style={{width:28,height:28,backgroundColor:'#efefef',justifyContent:'center',alignItems:'center'}}>
-              <Image source={u82} resizeMode='stretch' style={{width:14,height:14}}></Image>
-            </View>
-            <View style={{borderRadius:3,overflow:'hidden',flexDirection:'row',height:28,backgroundColor:'#f9f9f9',alignItems:'center',paddingHorizontal:5}}>
-              <Text ellipsizeMode={'tail'} numberOfLines={1} style={{maxWidth:width-150,fontSize:12,color:Colors.sTextColor}}>{this.article.dirname}</Text>
-              <Image source={u84} resizeMode='stretch' style={{width:14,height:14}}></Image>
-            </View>
-        </TouchableOpacity>
-        <View style={{height:40,flexDirection:'row',marginTop:0,alignItems:'center',justifyContent:'space-between'}}>
-          <View style={{flexDirection:'row',alignItems:'center'}}>
-          <View style={{height:40,flexDirection:'row',alignItems:'center'}}>
-            <Text style={{fontSize:13,color:Colors.sTextColor}}>{this.article.view} 阅读</Text>
-            
-          </View>
-            
-            {(this.article.userid != 1) &&    //这里获取的article是commenthome下的article 并没有获取到level，只有userid 所以没有用level判断  感觉这里不应该有赞赏按钮，建议只在帖子详情页保留
-            <TouchableOpacity onPress={this.rewardArticle} style={{display:'none',marginLeft:20,alignItems:'center'}}>
-              <Image source={reward} style={{width:18,height:18}}></Image>
-            </TouchableOpacity>
-            }
-          </View>
-          <View style={{flexDirection:'row',alignItems:'center'}}>
-          <TouchableOpacity onPress={()=> this.props.navigation.navigate('PushScreen',{article:this.article})} style={{width:50,height:40,alignItems:'center',justifyContent:"center",flexDirection:'row'}}>
-              
-              <Image style={{width:19,height:19}} source={push}></Image>
-              <Text style={{fontWeight:'bold',marginLeft:3,color:'#555',fontSize:14}}>推</Text>
-          </TouchableOpacity>
-            {this.props.report &&
-          <TouchableOpacity onPress={this.report} style={{width:40,height:40,alignItems:'flex-end',justifyContent:'center'}}>
-             <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:px(3),borderRadius:3,backgroundColor:'#f3f3f3'}}>
-            <AntDesign name='close' size={9} color={'#888'}/>
-            </View>
-          </TouchableOpacity>
-          }
-          </View>
-          
         </View>
         </View>
         </View>

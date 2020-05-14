@@ -29,7 +29,7 @@ class TabBtn extends React.PureComponent {
   render() {
    
     return (
-        <TouchableOpacity onPress={this._onPress} style={[this.props.selected?{backgroundColor:'rgb(236, 246, 255)'}:{backgroundColor:'rgb(247,247,247)'},{paddingVertical:px(14),paddingHorizontal:12,borderRadius:3,alignItems:'center',justifyContent:'center',marginRight:10}]}>
+        <TouchableOpacity onPress={this._onPress} style={[this.props.style,this.props.selected?{backgroundColor:'rgb(236, 246, 255)'}:{backgroundColor:'rgb(247,247,247)'},{paddingVertical:10,borderRadius:3,alignItems:'center',justifyContent:'center',marginRight:15}]}>
             <Text style={this.props.selected?{color:'#1584F5'}:{color:'#555555'}}>{this.props.title}</Text>
         </TouchableOpacity>
     )

@@ -6,7 +6,7 @@ import {px,isIphoneX} from '../../utils/px';
 import ImagePicker from 'react-native-image-picker';
 import { ScrollView } from 'react-native-gesture-handler';
 import ComentinArticle from '../../components/ComentinArticle';
-
+import PushinArticle from '../../components/PushinArticle';
 import AsyncStorage from '@react-native-community/async-storage';
 import AutoSizeImage from '../../components/AutoSizeImage';
 import HTMLView from 'react-native-htmlview';
@@ -16,7 +16,7 @@ import { Request } from '../../utils/request';
 import { baseimgurl } from '../../utils/Global';
 import Datetime from '../../components/Datetime';
 import FocusBtn from '../../components/FocusBtn';
-
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -66,9 +66,10 @@ export default class ArticleScreen extends React.Component {
 
     this.myUpedarticles = {};
     this.myUpedcomments = {};
-
+    this.myremarklist = {};
     this.flatlistpageY = null;
     this.scrollY = 0;
+    this.scrollFlag = 0; //0:评论按钮第一次按滚动到评论区，1:评论按钮第二次按滚动到顶部
     this.state = {
       audioPlayBg:this.audioPlayBgs[2],
 
@@ -78,20 +79,31 @@ export default class ArticleScreen extends React.Component {
       writefocus:false,
       imageurl:null,
       commentList:[],
+      pushList:[],
       height:0,
       commentcontent:'',
       user:null,
       uplist:{},
       uped:false,
       reportVisible:false,
+      reportArticleVisible:false,
       sort:'最热',
       upcount:this.article.up,
+
+      myremark:[0,0],// 第一位:0没选,1喜欢,2不喜欢   第二位:0没选,1利好,2利空
+
+      onlyauth:0
     }
 
     this.reportcommentid = -1;
     this.reportCommentList = {}
   }
 
+  onlyauthClick = () => {
+    this.setState({
+      onlyauth:this.state.onlyauth == 0?1:0
+    })
+  }
   stop = () => {
     if(this.sound) {
       this.sound.stop();
@@ -210,7 +222,19 @@ export default class ArticleScreen extends React.Component {
     if(user != null && user != '') {
       const json = JSON.parse(user);
       this.setState({user:json})
+
+      const myremarkliststr = await AsyncStorage.getItem('myremarklist_' + json.id);
+      if(!!myremarkliststr) {
+        this.myremarklist = JSON.parse(myremarkliststr)
+        console.log(this.myremarklist)
+        if(this.myremarklist[this.state.article.id]) {
+          this.setState({
+            myremark:this.myremarklist[this.state.article.id]
+          })
+        }
+      }
     }
+    this.getArticleRemark();
     if(this.article.category == 1) {
       this.getContent();
     }
@@ -219,22 +243,11 @@ export default class ArticleScreen extends React.Component {
       this.reportCommentList = JSON.parse(reportCommentListstr)
     }
 
+    if(reportCommentListstr) {
+      this.reportCommentList = JSON.parse(reportCommentListstr)
+    }
     this.getUped();
   }
-
-  /*addView = async() => {
-    try {
-      const result = await Request.post('addView',{
-        userid:this.state.user?this.state.user.id : '',
-        articleid:this.article.id
-      });
-      if(result.code == 1) {
-        
-      }
-    } catch (error) {
-      this.getComment();
-    }
-  }*/
 
   report2 = (commentid,title,publishuserid) => {
     this.reportcommenttitle = title;
@@ -243,6 +256,49 @@ export default class ArticleScreen extends React.Component {
     this.setState({
       reportVisible:true
     })
+  }
+
+  reportArticle = async(text) => {
+    let reportListstr = await AsyncStorage.getItem('reportList');
+    let reportList = {};
+    if(reportListstr != null) {
+      reportList = JSON.parse(reportListstr);
+    }
+    reportList[this.state.article.id] = 1;
+    AsyncStorage.setItem('reportList', JSON.stringify(reportList), function (error) {})
+
+    DeviceEventEmitter.emit('reportArticle', { id: this.state.article.id});
+
+    try {
+      const result = await Request.post('addReport',{
+        userid:!!this.state.user?this.state.user.id:'',
+        objid:this.state.article.id,
+        title:this.state.article.title,
+        publishuserid:this.state.article.userid,
+        type:1,
+        text:text
+      });
+      if(result.code == -2) {
+        Alert.alert('您已被封禁')
+        return;
+      }
+      if(result.code == 1) {
+        this.setState({
+          reportArticleVisible:false
+        },()=> {
+          const toastOpts = {
+            data: '感谢您的举报,我们会尽快处理',
+            textColor: '#ffffff',
+            backgroundColor: Colors.TextColor,
+            duration: 1000, //1.SHORT 2.LONG
+            position: WToast.position.BOTTOM, // 1.TOP 2.CENTER 3.BOTTOM
+          }
+          WToast.show(toastOpts)
+        })
+      }
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   reportComment = async(text) => {
@@ -406,15 +462,29 @@ export default class ArticleScreen extends React.Component {
   }
   
 
-  scrollToFlatlist =()=> {
-    console.log(this.scrollY)
+  scrollToFlatlist =(toComment)=> {
+    if(toComment) { //确定去评论区
+      this.scrollFlag = 1;
       let that = this;
+      const handle = findNodeHandle(this.flatlist)
+      UIManager.measure(handle,(x, y, width, height, pageX, pageY)=>{
+        that.flatlistpageY = pageY + this.scrollY - 200
+        that.scrollview.scrollTo({ x: 0, y: that.flatlistpageY, animated: true });
+      });
+    } else {
+      if(this.scrollFlag == 0) {
+        this.scrollFlag = 1;
+        let that = this;
         const handle = findNodeHandle(this.flatlist)
         UIManager.measure(handle,(x, y, width, height, pageX, pageY)=>{
           that.flatlistpageY = pageY + this.scrollY - 200
-          console.log(that.flatlistpageY)
           that.scrollview.scrollTo({ x: 0, y: that.flatlistpageY, animated: true });
         });
+      } else {
+        this.scrollFlag = 0;
+        this.scrollview.scrollTo({ x: 0, y: 0, animated: true });
+      }
+    }
     
   }
 
@@ -434,7 +504,9 @@ export default class ArticleScreen extends React.Component {
         userid:this.state.user.id,
         content:this.state.commentcontent, 
         articleid:this.article.id, 
-        pic:urluploadpath
+        onlyauth:this.state.onlyauth,
+        pic:urluploadpath,
+        articleuserid:this.article.userid
       });
       if(result.code > 0) {
         let commentList = this.state.commentList
@@ -459,13 +531,28 @@ export default class ArticleScreen extends React.Component {
           commentList:commentList,
           writefocus:false
         },()=>{
-          that.scrollToFlatlist();
+          that.scrollToFlatlist(true);
         })
       } else if(result.code == -2) {
         Alert.alert('您已被封禁')
       } else if(result.code == -3) {
         Alert.alert('请勿发表包含辱骂、色情、暴恐、涉政等违法信息')
         return;
+      }
+    } catch (error) {
+      
+    }
+  }
+
+  getPushs = async()=> {
+    try {
+      const result = await Request.post('getPushs',{
+        articleid:this.article.id
+      });
+      if(result.code == 1) {
+         this.setState({
+          pushList:result.data
+         })
       }
     } catch (error) {
       
@@ -485,6 +572,9 @@ export default class ArticleScreen extends React.Component {
           if(this.reportCommentList[result.data[i].id] == 1) {
             continue;
           }
+          if(result.data[i].onlyauth == 1 && (!this.state.user || (this.state.user.id != this.article.userid && this.state.user.id != result.data[i].userid))) {
+            continue;
+          }
           commentList.push(result.data[i])
         }
          this.setState({
@@ -492,7 +582,7 @@ export default class ArticleScreen extends React.Component {
          })
       }
     } catch (error) {
-      
+      console.log(error)
     }
   }
 
@@ -503,7 +593,11 @@ export default class ArticleScreen extends React.Component {
     this.setState({
       sort:sort
     },async() => {
-      this.getComment();
+      if(sort == '最新' || sort == '最热') {
+        this.getComment();
+      } else if(sort == '推+数'){
+        this.getPushs();
+      }
     })
     
   }
@@ -519,6 +613,26 @@ export default class ArticleScreen extends React.Component {
     this.setState({
       commentList:commentList
     })
+  }
+
+  getArticleRemark = async() => {
+    try {
+      const result = await Request.post('getArticleRemark',{
+        articleid:this.article.id,
+      });
+      if(result.code == 1) {
+         let article = this.article;
+         article.like = result.data.like;
+         article.dislike = result.data.dislike;
+         article.good = result.data.good;
+         article.bad = result.data.bad;
+         this.setState({
+          article:article
+         })
+      }
+    } catch (error) {
+      
+    }
   }
 
   getContent = async() => {
@@ -604,6 +718,90 @@ export default class ArticleScreen extends React.Component {
 
   }
 
+  addMyremark = async(remark) => {
+    if(!this.state.user) {
+      Alert.alert('您尚未登录')
+      return;
+    }
+    let myremark = this.state.myremark;
+
+    if(remark == 1 && myremark[0] == 1) {
+      return;
+    }
+    if(remark == 2 && myremark[0] == 2) {
+      return;
+    }
+    if(remark == 3 && myremark[1] == 1) {
+      return;
+    }
+    if(remark == 4 && myremark[1] == 2) {
+      return;
+    }
+
+    let article = this.state.article;
+    let decreasecolumn = '';
+    let increasecolumn = '';
+    if(remark == 1) {
+      if(myremark[0] == 2) {
+        decreasecolumn = 'dislike';
+        article.dislike = article.dislike - 1;
+      }
+      increasecolumn = 'like';
+      myremark[0] = 1;
+      article.like = article.like + 1;
+    } else if(remark == 2) {
+      if(myremark[0] == 1) {
+        decreasecolumn = 'like';
+        article.like = article.like - 1;
+      }
+      increasecolumn = 'dislike';
+      myremark[0] = 2;
+      article.dislike = article.dislike + 1;
+    } else if(remark == 3) {
+      if(myremark[1] == 2) {
+        decreasecolumn = 'bad';
+        article.bad = article.bad - 1;
+      }
+      myremark[1] = 1;
+      increasecolumn = 'good';
+      article.good = article.good + 1;
+    } else if(remark == 4) {
+      if(myremark[1] == 1) {
+        decreasecolumn = 'good';
+        article.good = article.good - 1;
+      }
+      myremark[1] = 2;
+      increasecolumn = 'bad';
+      article.bad = article.bad + 1;
+    }
+    this.setState({
+      myremark:myremark,
+      article:article
+    })
+
+    let data = {
+      decreasecolumn:decreasecolumn,
+      increasecolumn:increasecolumn,
+      userid:this.state.user.id,
+      articleid:this.state.article.id,
+      like:myremark[0],
+      good:myremark[1],
+      articleuserid:this.state.article.userid
+    }
+    try {
+      const result = await Request.post('remarkArticle',data);
+      if(result.code == 1) {
+        this.myremarklist[this.state.article.id] = myremark;
+        AsyncStorage.setItem('myremarklist_' + this.state.user.id, JSON.stringify(this.myremarklist), function (error) {})
+      }
+      
+    } catch (error) {
+      console.log(error)
+    }
+
+
+  }
+
   render() {
     let comment = require('../../images/article/u1464.png')
     let write = require('../../images/article/write.png')
@@ -640,7 +838,7 @@ export default class ArticleScreen extends React.Component {
 
         {this.article.level != 0 &&
         <TouchableOpacity onPress={this.goPerson} style={{marginTop:20,display:'flex',flexDirection:'row',height:36,alignItems:"center"}}>
-          <Image style={{width:38,height:38,borderRadius:19}} source={{uri:baseimgurl+this.state.article.avatarUrl}}></Image>
+          <Image style={{width:40,height:40,borderRadius:20}} source={{uri:baseimgurl+this.state.article.avatarUrl}}></Image>
           <View style={{flex:1,marginLeft:10,height:36,justifyContent:'space-between'}}>
             <Text style={{fontSize:14,color:Colors.TextColor,marginBottom:5,fontWeight:"bold"}}>{this.state.article.username}</Text>
             <Datetime style={{fontSize:12,color:Colors.GreyColor}} datetime={this.state.article.createdate}></Datetime>
@@ -692,12 +890,64 @@ export default class ArticleScreen extends React.Component {
         />
         }
 
-        <Text style={{marginTop:10,fontSize:13,color:Colors.GreyColor}}>
-          <Text style={{fontSize:13,color:Colors.GreyColor}}>{this.state.article.view} 阅读</Text>
-        </Text>
+        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:"center"}}>
+        <Text style={{marginTop:10,fontSize:13,color:Colors.GreyColor}}>{this.state.article.view} 阅读</Text>
+
+        <TouchableOpacity onPress={()=> {this.setState({reportArticleVisible:true})}} style={{width:30,height:40,alignItems:'flex-end',justifyContent:'center'}}>
+            <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:px(3),borderRadius:3,backgroundColor:'#f3f3f3'}}>
+            <AntDesign name='close' size={9} color={'#888'}/>
+            </View>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={{marginTop:20,fontSize:13,color:Colors.GreyColor,flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
+          <View style={{flexDirection:"row"}}>
+          <View style={{borderColor:'#e1e1e1',borderWidth:0.5,paddingVertical:7,paddingHorizontal:15,borderRadius:30}}>
+          {!this.state.uped &&
+            <TouchableOpacity onPress={()=>this.addUp(1,this.article.id)} style={{alignItems:'center',flexDirection:'row'}}>
+              <AntDesign name='staro' size={18} color={'#fabb2d'}/>
+              <Text style={{marginLeft:3,fontSize:12}}>收藏</Text>
+            </TouchableOpacity>
+          }
+          {this.state.uped &&
+          <TouchableOpacity onPress={()=>this.delUp(1,this.article.id)} style={{alignItems:'center',flexDirection:'row'}}>
+            <AntDesign name='star' size={18} color={'#fabb2d'}/>
+            <Text style={{marginLeft:3,fontSize:12}}>取消</Text>
+          </TouchableOpacity>
+          }
+          </View>
+          <View style={{marginLeft:10,borderColor:'#e1e1e1',borderWidth:0.5,paddingVertical:7,paddingHorizontal:15,borderRadius:30}}>
+          <TouchableOpacity style={{alignItems:'center',flexDirection:'row'}}>
+          <FontAwesome name='weixin' size={17} color={'#1fb922'}/>
+            <Text style={{marginLeft:3,fontSize:12}}>微信</Text>
+          </TouchableOpacity>
+          </View>
+          <View style={{marginLeft:10,borderColor:'#e1e1e1',borderWidth:0.5,paddingVertical:7,paddingHorizontal:15,borderRadius:30}}>
+          <TouchableOpacity style={{alignItems:'center',flexDirection:'row'}}>
+            <Image source={require('../../images/pyq.png')} style={{width:18,height:18}}></Image>
+            <Text style={{marginLeft:3,fontSize:12}}>朋友圈</Text>
+          </TouchableOpacity>
+          </View>
+          </View>
+        </View>
             
         </View>
 
+        <View style={{flexDirection:"row",marginTop:20,flexWrap:"wrap",justifyContent:"center"}}>
+          <TouchableOpacity onPress={()=>{this.addMyremark(1)}} 
+          style={[this.state.myremark[0] == 1?{backgroundColor:"#fecd36"}:{backgroundColor:"#eee"},{marginTop:5,paddingVertical:7,paddingHorizontal:12,borderRadius:15}]}>
+            <Text style={this.state.myremark[0] == 1?{fontSize:12,color:'black'}:{fontSize:12,color:'#333'}}>喜欢{this.state.article.like > 0 ? '(' + this.state.article.like + ')':''}</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>{this.addMyremark(2)}} 
+          style={[this.state.myremark[0] == 2?{backgroundColor:"#fecd36"}:{backgroundColor:"#eee"},{marginTop:5,marginLeft:10,paddingVertical:7,paddingHorizontal:12,borderRadius:15}]}>
+            <Text style={this.state.myremark[0] == 2?{fontSize:12,color:'black'}:{fontSize:12,color:'#333'}}>不喜欢{this.state.article.dislike > 0 ? '(' + this.state.article.dislike + ')':''}</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>{this.addMyremark(3)}} 
+          style={[this.state.myremark[1] == 1?{backgroundColor:"#fecd36"}:{backgroundColor:"#eee"},{marginTop:5,marginLeft:10,paddingVertical:7,paddingHorizontal:12,borderRadius:15}]}>
+            <Text style={this.state.myremark[1] == 1?{fontSize:12,color:'black'}:{fontSize:12,color:'#333'}}>利好{this.state.article.good > 0 ? '(' + this.state.article.good + ')':''}</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>{this.addMyremark(4)}} 
+          style={[this.state.myremark[1] == 2?{backgroundColor:"#fecd36"}:{backgroundColor:"#eee"},{marginTop:5,marginLeft:10,paddingVertical:7,paddingHorizontal:12,borderRadius:15}]}>
+            <Text style={this.state.myremark[1] == 2?{fontSize:12,color:'black'}:{fontSize:12,color:'#333'}}>利空{this.state.article.bad > 0 ? '(' + this.state.article.bad + ')':''}</Text></TouchableOpacity>
+
+        </View>
         <View style={{marginTop:20,flexDirection:"row",alignItems:'center',justifyContent:"center"}}>
         <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:25}} onPress={()=> {this.changeSort('最热')}}>
           <Text style={[this.state.sort =='最热'?{color:Colors.TextColor}:{color:"black"},{fontSize:15}]}>最热</Text>
@@ -708,30 +958,56 @@ export default class ArticleScreen extends React.Component {
         <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:25}} onPress={()=> {this.changeSort('最新')}}>
           <Text style={[this.state.sort =='最新'?{color:Colors.TextColor}:{color:"black"},{fontSize:15}]} >最新</Text>
         </TouchableOpacity>
+        <View>
+          <Text style={{fontSize:10}}>/</Text>
+        </View>
+        <TouchableOpacity style={{alignItems:'center',justifyContent:"center",width:55,height:25}} onPress={()=> {this.changeSort('推+数')}}>
+          <Text style={[this.state.sort =='推+数'?{color:Colors.TextColor}:{color:"black"},{fontSize:15}]} >推+数</Text>
+        </TouchableOpacity>
         </View>
 
-        {this.state.commentList.length == 0 &&
+        {( (this.state.sort =='推+数' && this.state.pushList.length == 0) || (this.state.sort !='推+数' && this.state.commentList.length == 0)) &&
           <View ref={(empty) => {
             this.empty = empty
-          }} style={{paddingVertical:50,alignItems:'center'}}><Text style={{color:Colors.GreyColor}}>暂无评论</Text></View>
+          }} style={{paddingVertical:50,alignItems:'center'}}><Text style={{color:Colors.GreyColor}}>暂无内容</Text></View>
         }
         
+        {this.state.sort != '推+数' &&
         <FlatList
-            ref={(flatlist) => {
-              this.flatlist = flatlist
-            }}
-              style={{ marginTop: 0 }}
-              data={this.state.commentList}
-              renderItem={
-                ({ item }) => {
-                  return(
-                    <ComentinArticle report={this.report2} onDelComment={this.onDelComment} myUpedcomments={this.myUpedcomments} user={this.state.user} comment={item} article={this.article}></ComentinArticle>
-                  )
-                }
-              }
-              ItemSeparatorComponent={this._separator}
-              keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
-            />
+        ref={(flatlist) => {
+          this.flatlist = flatlist
+        }}
+          style={{ marginTop: 0 }}
+          data={this.state.commentList}
+          renderItem={
+            ({ item }) => {
+              return(
+                <ComentinArticle report={this.report2} onDelComment={this.onDelComment} myUpedcomments={this.myUpedcomments} user={this.state.user} comment={item} article={this.article}></ComentinArticle>
+              )
+            }
+          }
+          ItemSeparatorComponent={this._separator}
+          keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+        />
+        }
+        {this.state.sort == '推+数' &&
+        <FlatList
+        ref={(flatlist) => {
+          this.flatlist = flatlist
+        }}
+          style={{ marginTop: 0 }}
+          data={this.state.pushList}
+          renderItem={
+            ({ item }) => {
+              return(
+                <PushinArticle user={this.state.user} push={item} article={this.article}></PushinArticle>
+              )
+            }
+          }
+          ItemSeparatorComponent={this._separator}
+          keyExtractor={(item, index) => item.id} //注意！！！必须添加，内部的purecomponent依赖它判断是否刷新，闹了好久的问题
+        />
+        }
         
         </View>
       </ScrollView>
@@ -748,31 +1024,16 @@ export default class ArticleScreen extends React.Component {
         <TouchableOpacity onPress={()=>{this.scrollToFlatlist()}} style={{alignItems:'center'}}>
           <Feather name='message-square' size={26} color={'black'}/>
         </TouchableOpacity>
-        
-        {!this.state.uped &&
-        <TouchableOpacity onPress={()=>this.addUp(1,this.article.id)} style={{marginLeft:20,alignItems:'center'}}>
-          <MaterialCommunityIcons name='thumb-up-outline' size={26} color={'black'}/>
-        </TouchableOpacity>
-        }
-        {this.state.uped &&
-        <TouchableOpacity onPress={()=>this.delUp(1,this.article.id)} style={{marginLeft:20,alignItems:'center'}}>
-          <MaterialCommunityIcons name='thumb-up' size={26} color={Colors.TextColor}/>
-        </TouchableOpacity>
-        }
         <TouchableOpacity onPress={()=> {this.props.navigation.navigate('PushScreen',{article:this.article,pushuserid:this.pushuserid})}} style={{marginLeft:20,alignItems:'center'}}>
           <Image source={push} resizeMode='stretch' style={{width:26,height:26}}></Image>
           <Text style={{display:'none',fontWeight:'bold',fontSize:0,color:"#000"}}>推</Text>
         </TouchableOpacity>
         {this.state.commentList.length > 0 && 
-        <TouchableOpacity onPress={()=>{this.scrollToFlatlist()}} style={{position:'absolute',left:13,top:0,height:14,width:14,backgroundColor:'#fc0d1b',borderRadius:14,justifyContent:'center',alignItems:'center'}}>
+        <TouchableOpacity onPress={()=>{this.scrollToFlatlist()}} style={{position:'absolute',left:13,top:0,height:14,paddingHorizontal:3,minWidth:14,backgroundColor:'#fc0d1b',borderRadius:14,justifyContent:'center',alignItems:'center'}}>
           <Text style={{fontSize:10,color:'white'}}>{this.state.commentList.length}</Text>
         </TouchableOpacity>
         }
-        {this.state.upcount > 0 && 
-        <View style={{position:'absolute',left:70,top:0,height:14,width:14,justifyContent:'center',alignItems:'center'}}>
-          <Text style={{fontSize:10,color:'black'}}>{this.state.upcount}</Text>
-        </View>
-        }
+        
       </View>
       
       <Image source={write} resizeMode='stretch' style={{top:11,left:20,position:'absolute',width:22,height:22}}></Image>
@@ -802,19 +1063,31 @@ export default class ArticleScreen extends React.Component {
               } 
               
             </View>
-            {(this.state.imageurl == null || this.state.imageurl == '') &&
-            <TouchableOpacity onPress={this.chooseImage} style={{marginTop:7,backgroundColor:"#f7f7f7",width:px(100),height:px(100),alignItems:'center',justifyContent:"center"}}>
-              <Image source={add} style={{width:px(54),height:px(54)}}></Image>
-            </TouchableOpacity>
-            }
-            {this.state.imageurl != null && this.state.imageurl != '' &&
-            <View style={{marginTop:7,backgroundColor:"#f7f7f7",width:px(100),height:px(100),alignItems:'center',justifyContent:"center"}}>
-            <Image source={{uri:this.state.imageurl}} style={{width:px(100),height:px(100)}}></Image>
-              <TouchableOpacity onPress={()=> {this.setState({imageurl:null})}} style={{alignItems:'center',justifyContent:'center',position:'absolute',backgroundColor:'rgba(0,0,0,0.6)',top:-px(10),right:-px(10),borderRadius:px(18),width:px(36),height:px(36)}}>
-                <Image style={{width:px(20),height:px(20)}} source={deletepng}></Image>
+
+            <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:"center"}}>
+              {(this.state.imageurl == null || this.state.imageurl == '') &&
+              <TouchableOpacity onPress={this.chooseImage} style={{marginTop:7,backgroundColor:"#f7f7f7",width:px(100),height:px(100),alignItems:'center',justifyContent:"center"}}>
+                <Image source={add} style={{width:px(54),height:px(54)}}></Image>
               </TouchableOpacity>
+              }
+              {this.state.imageurl != null && this.state.imageurl != '' &&
+              <View style={{marginTop:7,backgroundColor:"#f7f7f7",width:px(100),height:px(100),alignItems:'center',justifyContent:"center"}}>
+              <Image source={{uri:this.state.imageurl}} style={{width:px(100),height:px(100)}}></Image>
+                <TouchableOpacity onPress={()=> {this.setState({imageurl:null})}} style={{alignItems:'center',justifyContent:'center',position:'absolute',backgroundColor:'rgba(0,0,0,0.6)',top:-px(10),right:-px(10),borderRadius:px(18),width:px(36),height:px(36)}}>
+                  <Image style={{width:px(20),height:px(20)}} source={deletepng}></Image>
+                </TouchableOpacity>
+              </View>
+              }
+              <View>
+                <TouchableOpacity onPress={this.onlyauthClick} style={{justifyContent:"flex-end",marginRight:10,marginTop:15,flexDirection:'row',alignItems:"center"}}>
+                  <View style={this.state.onlyauth == 0 ?styles.unselectwrap:styles.selectwrap}>
+                    <View style={this.state.onlyauth == 0 ?styles.unselectinner:styles.selectinner}></View>
+                  </View>
+                  <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>仅帖子作者可见</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            }
+            
             
         </Animated.View>
         
@@ -823,6 +1096,50 @@ export default class ArticleScreen extends React.Component {
 
 
 
+
+        <Modal
+          animationType={"fade"}
+          transparent={true}
+          visible={this.state.reportArticleVisible}
+        >
+       <TouchableWithoutFeedback onPress={() => {this.setState({reportArticleVisible:false})}}>
+          <View style={[this.props.style,{top:0,left:0,backgroundColor:'rgba(0,0,0,0.4)',zIndex:9999,width:width,height:height,alignItems:'center',justifyContent:"center"}]}>
+            <View style={{width:width - 80,borderRadius:5,backgroundColor:"white"}}>
+            <TouchableWithoutFeedback>
+            <View style={{paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1',alignItems:'center',justifyContent:'center',flexDirection:'row'}}>
+              <AntDesign name='warning' size={16} color={'black'}/>
+              <Text style={{marginLeft:5,color:'black',fontSize:15,fontWeight:'bold',textAlign:'center'}}>举报</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportArticle('低俗色情')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>低俗色情</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportArticle('虚假欺诈')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>虚假欺诈</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportArticle('暴恐涉政')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>暴恐涉政</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            <TouchableWithoutFeedback onPress={() => this.reportArticle('涉及违禁品')}>
+            <View style={{marginHorizontal:10,paddingVertical:15,borderBottomWidth:0.4,borderBottomColor:'#e1e1e1'}}>
+            <Text style={{color:'black',fontSize:15}}>涉及违禁品</Text>
+            </View>
+            </TouchableWithoutFeedback>
+
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+        </Modal>
 
         <Modal
           animationType={"fade"}
@@ -905,7 +1222,32 @@ const styles = StyleSheet.create({
   img:{
     maxWidth:width-30,
     width:width-30
-  }
+  },
+  unselectwrap:{
+    marginLeft:5,
+    borderWidth:1,
+    borderColor:"#999",
+    width:17,
+    height:17,
+    
+  },
+  selectwrap:{
+    marginLeft:5,
+    borderWidth:1,
+    borderColor:Colors.TextColor,
+    width:17,
+    height:17,
+    alignItems:'center',
+    justifyContent:"center"
+  },
+  unselectinner:{
+
+  },
+  selectinner:{
+    width:11,
+    height:11,
+    backgroundColor:Colors.TextColor
+  },
 });
 
 const topStyles = StyleSheet.create({

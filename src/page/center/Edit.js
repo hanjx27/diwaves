@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {Alert,Picker,Modal,DeviceEventEmitter,Image,TextInput,StatusBar,NativeModules,PanResponder,SafeAreaView,Keyboard,View,StyleSheet,Platform,Text,Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated} from 'react-native';
+import {ActivityIndicator,Alert,Picker,Modal,DeviceEventEmitter,Image,TextInput,StatusBar,NativeModules,PanResponder,SafeAreaView,Keyboard,View,StyleSheet,Platform,Text,Dimensions,TouchableOpacity,TouchableWithoutFeedback,Animated} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
@@ -30,6 +30,9 @@ export default class Settings extends React.Component {
        namefocus:false,
        genderVisible:false,
        gender:'男',
+
+       uploading:false,
+       uploadingText:'头像上传中'
     }
   }
   
@@ -99,7 +102,13 @@ export default class Settings extends React.Component {
       else if (response.customButton) {
       }
       else {
+        this.setState({
+          uploading:true
+        })
         const result = await that.uploadImage(response.uri);
+        this.setState({
+          uploading:false
+        })
         if(result != null&& result.path) {
           let user = this.state.user;
           user.avatar = result.path;
@@ -240,6 +249,13 @@ export default class Settings extends React.Component {
     return (
       <View style={{flex: 1,flexDirection:'column',backgroundColor: '#f5f5f5'}}>
        
+       <View style={{display:this.state.uploading?'flex':'none',position:this.state.uploading?'absolute':'relative',zIndex:9999,width:width,height:height,alignItems:'center',justifyContent:"center"}}>
+          <View style={{width:px(200),height:px(200),borderRadius:5,backgroundColor:"rgba(0,0,0,0.8)",alignItems:'center',justifyContent:"center"}}>
+            <ActivityIndicator  color='white'/>
+            <Text style={{marginTop:5,color:'white',fontSize:11}}>{this.state.uploadingText}</Text>
+          </View>
+      </View>
+
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
@@ -262,6 +278,12 @@ export default class Settings extends React.Component {
         <Image style={{marginRight:20,width:20,height:20}} resizeMode='stretch' source={arrow}></Image>
         </View>
       </TouchableOpacity>
+      <View style={[styles.btn]}>
+        <Text style={{color:'black',fontSize:15}}>数字号</Text>
+        <View style={{flexDirection:'row',alignItems:'center'}}>
+          <Text style={{marginRight:25}}>{this.state.user.wxname}</Text>
+        </View>
+      </View>
       <TouchableOpacity onPress={this.genderChange} style={[styles.btn]}>
         <Text style={{color:'black',fontSize:15}}>性别</Text>
         <View style={{flexDirection:'row',alignItems:'center'}}>

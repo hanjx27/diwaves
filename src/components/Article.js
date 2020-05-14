@@ -132,11 +132,11 @@ class Article extends React.PureComponent {
   }
 
   goArticleDetail = () => {
-    DeviceEventEmitter.emit('someone_play', { id: -1});
-    if(!this.addviewflag) {
-      this.setState({view:this.state.view + 1});
-      this.addviewflag = true;
-    }
+    //DeviceEventEmitter.emit('someone_play', { id: -1});
+    //if(!this.addviewflag) {
+      //this.setState({view:this.state.view + 1});
+      //this.addviewflag = true;
+    //}
   
     this.props.navigation.navigate('ArticleScreen',{article:this.props.article,updateCommentCount:this.updateCommentCount});
   }
@@ -144,9 +144,17 @@ class Article extends React.PureComponent {
   report = () => {
     !!this.props.report && this.props.report(this.props.article.id,this.props.article.title,this.props.article.userid)
   }
+
+  goCategoryArticle =() => {
+    if(this.props.article.parentdir == 1) { //资讯
+      this.props.navigation.push('CategoryArticles',{title:this.props.article.dirname,dir:{id:1,title:'资讯'},subdir:{id:this.props.article.dir,title:this.props.article.dirname.split('/')[1]},lastdir:null})
+    } else {
+      this.props.navigation.push('CategoryArticles',{title:this.props.article.dirname,dir:{id:2,title:'财经'},subdir:{id:18,title:'沪深'},lastdir:{id:this.props.article.dir,title:this.props.article.dirname.split('/')[2]}})
+    }
+  }
+
   render() {
-    
-    const push = require('../images/push.png') //这里没推按钮，因为如果是系统发的帖子，不太好布局
+    let push = require('../images/push.png');
     const u82 = require('../images/u82.png')
     const u84 = require('../images/u84.png')
     const u86 = require('../images/u86.png')
@@ -186,7 +194,7 @@ class Article extends React.PureComponent {
           <View style={{marginLeft:10,width:10,height:10,backgroundColor:'red',borderRadius:10}}></View>
         </View>
         }
-        <TouchableOpacity onPress={()=>{this.props.navigation.push('CategoryArticles',{title:this.props.article.dirname,lastdir:{id:this.props.article.dir,title:this.props.article.dirname.split('/')[2]}})}} 
+        <TouchableOpacity onPress={()=>{this.goCategoryArticle()}} 
           style={{display:!!this.props.hideDir?'none':'flex',flexDirection:'row',marginTop:10,borderRadius:3,overflow:'hidden'}}>
             <View style={{width:28,height:28,backgroundColor:'#efefef',justifyContent:'center',alignItems:'center'}}>
               <Image source={u82} resizeMode='stretch' style={{width:14,height:14}}></Image>
@@ -204,14 +212,14 @@ class Article extends React.PureComponent {
             <Datetime style={{marginLeft:10,fontSize:13,color:Colors.GreyColor}} datetime={this.props.article.createdate}></Datetime>
             }
           </View>
-          <View style={{flexDirection:'row',alignItems:'center'}}>
-          <TouchableOpacity onPress={()=> this.props.navigation.navigate('PushScreen',{article:this.props.article})} 
-            style={{display:'none',width:50,height:40,alignItems:'center',justifyContent:"center",flexDirection:'row'}}>
+          <View style={{flexDirection:'row',alignItems:'center',paddingRight:10}}>
+          <TouchableOpacity onPress={()=> this.props.navigation.navigate('PushScreen',{article:this.props.article,pushuserid:-1})} 
+            style={{width:50,height:40,alignItems:'center',justifyContent:"center",flexDirection:'row'}}>
               <Image style={{width:19,height:19}} source={push}></Image>
               <Text style={{fontWeight:'bold',marginLeft:3,color:'#555',fontSize:14}}>推</Text>
           </TouchableOpacity>
           {this.props.report &&
-          <TouchableOpacity onPress={this.report} style={{width:40,height:40,alignItems:'flex-end',justifyContent:'center'}}>
+          <TouchableOpacity onPress={this.report} style={{width:30,height:40,alignItems:'flex-end',justifyContent:'center'}}>
             <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:px(3),borderRadius:3,backgroundColor:'#f3f3f3'}}>
             <AntDesign name='close' size={9} color={'#888'}/>
             </View>

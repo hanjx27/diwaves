@@ -124,28 +124,72 @@ export default class HomeScreen extends React.Component {
   async componentWillMount() {
     
     this.getDirs();
-
-     //this.getUserInfo(2);
-    //this.getFocuslist(2);
-    //this.getFocuslist(json.id);
-
-
     //初始化数据
-    const user = await AsyncStorage.getItem('user');
-    if(user != null && user != '') {
-      const json = JSON.parse(user);
-      this.getUserInfo(json.id);
-      this.getFocuslist(json.id);
-    } else {
+    const userstr = await AsyncStorage.getItem('user');
+    if(userstr != null && userstr != '') {
+      const json = JSON.parse(userstr);
+      let user = await this.getUserInfo(json.id);
+      if(user) {
+        this.setState({user:user})
+        AsyncStorage.setItem('user', JSON.stringify(user), function (error) {})
+
+        this.getFocuslist(json.id);
+        this.getRemarklist(json.id);
+        this.getUplist(json.id);
+      //this.getFriends(json.id);
+      } else {
+        await AsyncStorage.removeItem('user');
+      }
       
+    } else {
     }
   }
 
+  getFriends = async(id) => {
+    try {
+      const result = await Request.post('getFriends',{
+        userid:id
+      });
+      const friends = result.data;
+      AsyncStorage.setItem('friendList_' + id, JSON.stringify(friends), function (error) {})
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  getRemarklist = async(userid) => {
+
+      try {
+        const result = await Request.post('getMyremarks',{
+          userid:userid
+        });
+        console.log(result.data)
+        AsyncStorage.setItem('myremarklist_' + userid, JSON.stringify(result.data), function (error) {})
+      } catch (error) {
+        console.log(error)
+      }
+  }
+
+  getUplist = async(id) => {
+    try {
+      const result = await Request.post('getUpedObjects',{
+        userid:id,
+      });
+      if(result.code == 1) {
+        const myUpedarticles = result.data.myUpedarticles
+        const myUpedcomments = result.data.myUpedcomments
+        const myUpedreplys = result.data.myUpedreplys
+      
+        AsyncStorage.setItem('myUpedarticles_' + this.state.user.id, JSON.stringify(myUpedarticles), function (error) {})
+        AsyncStorage.setItem('myUpedcomments_' + this.state.user.id, JSON.stringify(myUpedcomments), function (error) {})
+        AsyncStorage.setItem('myUpedreplys_' + this.state.user.id, JSON.stringify(myUpedreplys), function (error) {})
+
+      }
+    } catch (error) {
+    }
+  }
 
   getFocuslist = async(id) => {
-
-    const focusliststr = await AsyncStorage.getItem('focuslist_' + id);
-    if(focusliststr == null) {
       try {
         const result = await Request.post('getFocusList',{
           id:id
@@ -155,7 +199,6 @@ export default class HomeScreen extends React.Component {
       } catch (error) {
         console.log(error)
       }
-    }
     
   }
 
@@ -171,13 +214,20 @@ export default class HomeScreen extends React.Component {
         let subtab_hot = null;
         let subtab_tiyu = null;
         for(let i = 0;i < dirs.length;i++) {
-          let dir = dirs[i];//新闻 财经
-          dir.subdirs[0].selected = true;
-          for(let j = 0;j < dir.subdirs.length;j++) {
-            let subdir = dir.subdirs[j] //
-            subdir.subdirs.push({
+          let dir = dirs[i];//资讯 财经
+          if(dir.title == '财经') {
+            dir.subdirs[0].selected = true;
+            for(let j = 0;j < dir.subdirs.length;j++) {
+              let subdir = dir.subdirs[j] //
+              subdir.subdirs.unshift({
+                title: "不限",
+                id:subdir.id
+              })
+            }
+          } else if(dir.title == '资讯') {
+            dir.subdirs.unshift({
               title: "不限",
-              id:subdir.id
+              id:dir.id
             })
           }
         }
@@ -209,20 +259,16 @@ export default class HomeScreen extends React.Component {
       const result = await Request.post('getUserInfo',{
         id:id
       });
-      const user = result.data;
-      this.setState({user:user})
-      AsyncStorage.setItem('user', JSON.stringify(user), function (error) {})
+      return result.data;
     } catch (error) {
       console.log(error)
     }
+    return null;
   }
 
   componentDidMount = async() => {
     //AsyncStorage.removeItem('reportCommentList');
     //AsyncStorage.removeItem('reportList');
-  }
-
-  componentWillUnmount() {
   }
   selectdir = (item) => {
     this.setState({seldir:item})
@@ -234,20 +280,27 @@ export default class HomeScreen extends React.Component {
     }
   }
 
-  selectsubdir =(title) => {
+  selectsubdir =(item) => {
     let seldir = this.state.seldir;
-    let selsubdir = null;
-    for(let i = 0;i < seldir.subdirs.length;i++) {
-      seldir.subdirs[i].selected = false;
-      if(seldir.subdirs[i].title == title) {
-        seldir.subdirs[i].selected = true;
-        selsubdir = seldir.subdirs[i];
+
+    if(seldir.title == '资讯') {
+      this.props.navigation.navigate('CategoryArticles',{dir:this.state.seldir,subdir:item,lastdir:null})
+      return;
+    } else {
+      let selsubdir = null;
+      for(let i = 0;i < seldir.subdirs.length;i++) {
+        seldir.subdirs[i].selected = false;
+        if(seldir.subdirs[i].title == item.title) {
+          seldir.subdirs[i].selected = true;
+          selsubdir = seldir.subdirs[i];
+        }
       }
+      this.setState({
+        seldir:seldir,
+        selsubdir:selsubdir
+      })
     }
-    this.setState({
-      seldir:seldir,
-      selsubdir:selsubdir
-    })
+    
   }
 
   
@@ -273,7 +326,7 @@ export default class HomeScreen extends React.Component {
         {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
         {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
 
-        <View ref="issue" style={{position:'absolute',right:0,top:isIphoneX?44:STATUSBAR_HEIGHT,zIndex:99,height:50,backgroundColor:'white',paddingHorizontal:10,flexDirection:'row',alignItems:'center',justifyContent:"space-between"}}>
+        <View ref="issue" style={{position:'absolute',right:0,top:3+(isIphoneX?44:STATUSBAR_HEIGHT),zIndex:99,height:46,backgroundColor:'white',paddingHorizontal:10,flexDirection:'row',alignItems:'center',justifyContent:"space-between"}}>
           <View style={{flexDirection:'row'}}>
           <TouchableOpacity onPress={this.search} style={{width:40,height:38,paddingTop:5,justifyContent:'flex-start',alignItems:'center'}}>
             <Feather name='search' size={22} color={'black'}/>
@@ -305,13 +358,14 @@ export default class HomeScreen extends React.Component {
           })}
           </View>
 
-          <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={{marginTop:5,flexDirection:'row',width: width,paddingLeft:15}}>
-            {this.state.seldir && this.state.seldir.subdirs.map(item => {
-                  return (<TabBtn title={item.title} selected={item.selected} onPressed={() => this.selectsubdir(item.title)}></TabBtn>)
-            })}
-          </ScrollView>
+          <View style={{flexDirection:'row',flexWrap:"wrap",paddingLeft:15,marginTop:10}}>
+          {this.state.seldir && this.state.seldir.subdirs.map(item => {
+            return (<TabBtn style={{width:(width - 90)/5,marginBottom:15}} title={item.title} selected={item.selected} onPressed={() => this.selectsubdir(item)}></TabBtn>)
+          })}
+          </View>
 
-          {this.state.selsubdir &&
+
+          {this.state.seldir && this.state.seldir.title == '财经' && this.state.selsubdir &&
           <FlatList
               style={{ marginTop: 0,backgroundColor:'white'}}
               data={this.state.selsubdir.subdirs}

@@ -23,6 +23,8 @@ class Request {
      */
     async _request(url, options, type) {
       url = url.indexOf('http') == 0 ? url : baseurl + url;
+      //url = encodeURI(url);
+      //console.log(url)
       let res = await fetch(url, options);
      
       this._checkStatus(res.status, res, url)
@@ -116,7 +118,13 @@ class Request {
   _getFormData(data) {
     let formData = [];
     for (let key in data) {
-      formData.push(key + "=" + data[key]);
+      let value = data[key];
+      console.log(value)
+      if(value) {
+        value = value.toString().replace(/&/g,'%26');
+      }
+      
+      formData.push(key + "=" + value);
     }
     formData = formData.join("&");
     return formData

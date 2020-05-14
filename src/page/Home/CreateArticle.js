@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
-import {Alert,Image,FlatList,StatusBar,NativeModules,PanResponder,ActivityIndicator,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated} from 'react-native';
+import {Alert,Image,FlatList,StatusBar,NativeModules,PanResponder,ActivityIndicator,Keyboard,View,StyleSheet,Platform,Text,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated} from 'react-native';
+import {WebView} from 'react-native-webview';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
@@ -67,7 +68,9 @@ export default class CreateArticle extends React.Component {
             color:this.config.format_inactive_color
         },{
             color:this.config.format_inactive_color
-        }]
+        }],
+        tofans:1,
+        tofriend:1
     }
   }
   
@@ -160,11 +163,21 @@ export default class CreateArticle extends React.Component {
     
   }
 
+  injectJs = (message)=> {
+    message = encodeURI(message);
+    return `test('${message}')`
+  }
   onLoadEnd = (e) => {
     //let baseimgurl = "width:" + baseimgurl;
-    this.inweb && this.inweb.postMessage("baseimgurl:" + baseimgurl);//发送消息到H5
+    //this.inweb && this.inweb.postMessage("baseimgurl:" + baseimgurl);//发送消息到H5
+    let message = "baseimgurl:" + baseimgurl;
+   
+    //this.inweb && this.inweb.injectJavaScript(`test(${message})`)
+    this.inweb && this.inweb.injectJavaScript(this.injectJs(message))
     if(this.draft != null) {
-      this.inweb && this.inweb.postMessage("initdraft:" + JSON.stringify(this.draft));//发送消息到H5
+      let draftmessage = "initdraft:" + JSON.stringify(this.draft);
+      this.inweb && this.inweb.injectJavaScript(this.injectJs(draftmessage))
+      //this.inweb && this.inweb.postMessage("initdraft:" + JSON.stringify(this.draft));//发送消息到H5
     }
   };
 
@@ -179,7 +192,8 @@ export default class CreateArticle extends React.Component {
             })
         }
         
-        this.inweb && this.inweb.postMessage(index);
+        //this.inweb && this.inweb.postMessage(index);
+        this.inweb && this.inweb.injectJavaScript(this.injectJs(index))
     } else { //选择图片
       //this.inweb && this.inweb.postMessage(index + ":d2e3130e91bf4b679e999f0576beb321.jpg");
       //return;
@@ -207,10 +221,20 @@ export default class CreateArticle extends React.Component {
         else if (response.customButton) {
         }
         else {
+          this.setState({
+            uploading:true,
+            uploadingText:"上传图片中"
+          })
           const result = await that.uploadImage(response.uri);
+          this.setState({
+            uploading:false,
+            uploadingText:"正在上传中"
+          })
           //that.setState({imageurl: response.uri});
           if(result != null&& result.path) {
-            this.inweb && this.inweb.postMessage(index + "$" + baseimgurl + result.path);
+            let message = index + "$" + baseimgurl + result.path;
+            this.inweb && this.inweb.injectJavaScript(this.injectJs(message))
+            //this.inweb && this.inweb.postMessage(index + "$" + baseimgurl + result.path);
           }
         }
     });
@@ -292,7 +316,9 @@ export default class CreateArticle extends React.Component {
       return;
     }
 
-    this.inweb && this.inweb.postMessage("save:" + this.state.user.id + ":" + this.state.choosendirid + ":" + this.state.choosendir);
+    let message = "save:" + this.state.user.id + ":" + this.state.choosendirid + ":" + this.state.choosendir + ":" + this.state.tofans + ":" + this.state.tofriend;
+    this.inweb && this.inweb.injectJavaScript(this.injectJs(message))
+    //this.inweb && this.inweb.postMessage("save:" + this.state.user.id + ":" + this.state.choosendirid + ":" + this.state.choosendir);
   }
 
   saveDraft = () => {
@@ -300,7 +326,9 @@ export default class CreateArticle extends React.Component {
       Alert.alert('去登录')
       return;
     }
-    this.inweb && this.inweb.postMessage("draft:" + this.state.user.id + ":" + (this.state.choosendirid?this.state.choosendirid:-1) + ":" + (this.state.choosendir?this.state.choosendir:''));
+    let message = "draft:" + this.state.user.id + ":" + (this.state.choosendirid?this.state.choosendirid:-1) + ":" + (this.state.choosendir?this.state.choosendir:'');
+    this.inweb && this.inweb.injectJavaScript(this.injectJs(message))
+    //this.inweb && this.inweb.postMessage("draft:" + this.state.user.id + ":" + (this.state.choosendirid?this.state.choosendirid:-1) + ":" + (this.state.choosendir?this.state.choosendir:''));
   }
 
   rightBtn = () => {
@@ -314,6 +342,18 @@ export default class CreateArticle extends React.Component {
       </TouchableOpacity>
     </View>
     )
+  }
+
+  tofriendClick = () => {
+    this.setState({
+      tofriend:this.state.tofriend == 0?1:0
+    })
+  }
+
+  tofansClick = () => {
+    this.setState({
+      tofans:this.state.tofans == 0?1:0
+    })
   }
   render() {
     let forbidtext = '';
@@ -413,10 +453,10 @@ export default class CreateArticle extends React.Component {
           let data = e.nativeEvent.data
           try {
             data = decodeURIComponent(decodeURIComponent(e.nativeEvent.data))
+            
           } catch(e) {
 
           }
-            
             /*if(Platform.OS === 'ios') {
               data = decodeURIComponent(decodeURIComponent(e.nativeEvent.data))
             } else {
@@ -478,8 +518,25 @@ export default class CreateArticle extends React.Component {
       >
       </WebView>
 
-        <Animated.View style={{marginBottom:this.state.keyboardHeight,flexDirection:'row',backgroundColor:'white',borderTopColor:'#eee',borderTopWidth:0.5,height:45}}>
-            <ScrollView style={{width:width,height:45}} horizontal={true}>
+        <Animated.View style={{marginBottom:this.state.keyboardHeight,flexDirection:'column',backgroundColor:'white',borderTopColor:'#eee',borderTopWidth:0.5}}>
+            
+            <View style={{flexDirection:'row',justifyContent:'flex-end'}}>
+              <TouchableOpacity onPress={this.tofansClick} style={{justifyContent:"flex-end",marginRight:10,marginTop:15,flexDirection:'row',alignItems:"center"}}>
+                <View style={this.state.tofans == 0 ?styles.unselectwrap:styles.selectwrap}>
+                  <View style={this.state.tofans == 0 ?styles.unselectinner:styles.selectinner}></View>
+                </View>
+                <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>发给粉丝</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={this.tofriendClick} style={{justifyContent:"flex-end",marginRight:10,marginTop:15,flexDirection:'row',alignItems:"center"}}>
+                <View style={this.state.tofriend == 0 ?styles.unselectwrap:styles.selectwrap}>
+                  <View style={this.state.tofriend == 0 ?styles.unselectinner:styles.selectinner}></View>
+                </View>
+                <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>推给好友</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{marginTop:5,width:width,height:45}} horizontal={true}>
             {this.state.format_btns[0].color == this.config.format_unable_color &&
             <View onPress={()=> {this.formatClick(0)}} style={[styles.format_btn]}>
                 <Feather name='bold' size={20} color={this.state.format_btns[0].color}/>
@@ -581,5 +638,30 @@ const styles = StyleSheet.create({
 
       },
     })
-  }
+  },
+  unselectwrap:{
+    marginLeft:5,
+    borderWidth:1,
+    borderColor:"#999",
+    width:17,
+    height:17,
+    
+  },
+  selectwrap:{
+    marginLeft:5,
+    borderWidth:1,
+    borderColor:Colors.TextColor,
+    width:17,
+    height:17,
+    alignItems:'center',
+    justifyContent:"center"
+  },
+  unselectinner:{
+
+  },
+  selectinner:{
+    width:11,
+    height:11,
+    backgroundColor:Colors.TextColor
+  },
 });

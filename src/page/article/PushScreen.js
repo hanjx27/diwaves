@@ -86,7 +86,10 @@ export default class PushScreen extends React.Component {
         selected:false
       }],
 
-      tofans:0
+      tofriend:1,
+
+      pushPerGold:10
+
     }
   }
 
@@ -126,7 +129,7 @@ export default class PushScreen extends React.Component {
         choosesgold[i].selected = true;
         this.type = 2;
         this.coincount = value;
-        this.peoplecount = value * 10;
+        this.peoplecount = value * this.state.pushPerGold;
       }
     }
     this.setState({
@@ -136,7 +139,46 @@ export default class PushScreen extends React.Component {
   }
 
   componentDidMount = () => {
-    
+    this.getConfig();
+  }
+
+  getConfig = async()=> {
+    try {
+      const result = await Request.post('getConfig',{
+      });
+      if(result.code == 1) {
+        this.setState({
+          pushPerGold:result.data.pushPerGold,
+          choosesgold:[{
+            title:(result.data.pushPerGold * 1) + '人',
+            value:1,
+            selected:false
+          },{
+            title:(result.data.pushPerGold * 2) + '人',
+            value:2,
+            selected:false
+          },{
+            title:(result.data.pushPerGold * 5) + '人',
+            value:5,
+            selected:false
+          },{
+            title:(result.data.pushPerGold * 10) + '人',
+            value:10,
+            selected:false
+          },{
+            title:(result.data.pushPerGold * 20) + '人',
+            value:20,
+            selected:false
+          },{
+            title:(result.data.pushPerGold * 50) + '人',
+            value:50,
+            selected:false
+          }],
+        })
+      }
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   componentWillUnmount() {
@@ -163,7 +205,8 @@ export default class PushScreen extends React.Component {
           pushuserid:this.pushuserid,
           articleuserid:this.article.userid,
           username:this.state.user.name,
-          content:this.state.pushcontent
+          content:this.state.pushcontent, //pushcontent为空的话，后台处理
+          tofriend:this.state.tofriend
         });
         if(result.code == -4) {
           Alert.alert('您已被封禁')
@@ -238,9 +281,9 @@ export default class PushScreen extends React.Component {
   }
   
 
-  toFansClick = () => {
+  tofriendClick = () => {
     this.setState({
-      tofans:this.state.tofans == 0?1:0
+      tofriend:this.state.tofriend == 0?1:0
     })
   }
   
@@ -286,7 +329,7 @@ export default class PushScreen extends React.Component {
 
         <View style={{flexDirection:"row",alignItems:"center",height:40}}>
           <Text style={{fontSize:15}}>使用金币推送</Text>
-          <Text style={{marginLeft:20,color:Colors.sTextColor}}>1金币推10人</Text>
+          <Text style={{marginLeft:20,color:Colors.sTextColor}}>1金币推{this.state.pushPerGold}人</Text>
         </View>
 
         <View style={{flexDirection:"row",flexWrap:'wrap',justifyContent:'space-evenly'}}>
@@ -297,11 +340,11 @@ export default class PushScreen extends React.Component {
             })}
         </View>
 
-        <TouchableOpacity onPress={this.toFansClick} style={{justifyContent:"flex-end",marginRight:10,marginTop:20,flexDirection:'row',alignItems:"center"}}>
-          <View style={this.state.tofans == 0 ?styles.unselectwrap:styles.selectwrap}>
-            <View style={this.state.tofans == 0 ?styles.unselectinner:styles.selectinner}></View>
+        <TouchableOpacity onPress={this.tofriendClick} style={{justifyContent:"flex-end",marginRight:10,marginTop:20,flexDirection:'row',alignItems:"center"}}>
+          <View style={this.state.tofriend == 0 ?styles.unselectwrap:styles.selectwrap}>
+            <View style={this.state.tofriend == 0 ?styles.unselectinner:styles.selectinner}></View>
           </View>
-          <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>分享给粉丝</Text>
+          <Text style={{marginLeft:10,fontSize:14,color:'#666'}}>推给好友</Text>
         </TouchableOpacity>
         
 
@@ -311,7 +354,7 @@ export default class PushScreen extends React.Component {
 
         <View style={{marginTop:30,color:Colors.sTextColor,marginBottom:50}}>
             <Text style={{color:Colors.sTextColor}}>温馨提示：</Text>
-            <Text style={{marginTop:10,color:Colors.sTextColor,lineHeight:20}}>1、1银币推1人，1金币推10人</Text>
+            <Text style={{marginTop:10,color:Colors.sTextColor,lineHeight:20}}>1、1银币推1人，1金币推{this.state.pushPerGold}人</Text>
         </View>
       </ScrollView>
       </View>

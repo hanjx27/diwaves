@@ -54,7 +54,7 @@ class ComentinArticle extends React.PureComponent {
 
   addUp = async() => {
     if(this.props.user == null) {
-      Alert.alert('请先登录') //需要做统一处理
+      Alert.alert('您尚未登录') //需要做统一处理
       return;
     }
 
@@ -116,6 +116,7 @@ class ComentinArticle extends React.PureComponent {
       const result = await Request.post('deleteComment',{
         commentid:this.props.comment.id,
         articleid:this.props.article.id,
+        articleuserid:this.props.article.userid,
         userid:this.props.comment.userid //评论人的id，有可能是文章作者删除评论，但是传递的userid要传评论人的id
       });
     } catch (error) {
@@ -180,30 +181,30 @@ class ComentinArticle extends React.PureComponent {
         </TouchableOpacity>
         <View style={{flex:1,flexDirection:'column'}}>
         <View style={{display:'flex',flexDirection:'row',alignItems:"center"}}>
-          <Text style={{flex:1,fontSize:14,fontWeight:"bold",color:Colors.TextColor}}>{this.props.comment.username}</Text>
+          <Text style={{flex:1,fontSize:14,color:Colors.TextColor}}>{this.props.comment.username}</Text>
         
 
 
           {this.state.uped &&
           <TouchableOpacity onPress={()=>{this.delUp()}} style={{width:50,height:40,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
             <MaterialCommunityIcons name='thumb-up' size={19} color={Colors.TextColor}/>
-            <Text style={{fontSize:13,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
+            <Text style={{color:'black',fontSize:13,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
           </TouchableOpacity>
           }
           {!this.state.uped &&
             <TouchableOpacity onPress={()=>{this.addUp()}} style={{width:50,height:40,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
             <MaterialCommunityIcons name='thumb-up-outline' size={19} color={'black'}/>
             {this.state.up == 0 &&
-            <Text style={{fontSize:13,marginLeft:3,marginTop:2}}>赞</Text>
+            <Text style={{color:'black',fontSize:13,marginLeft:3,marginTop:2}}>赞</Text>
             }
             {this.state.up > 0 &&
-            <Text style={{fontSize:13,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
+            <Text style={{color:'black',fontSize:13,marginLeft:3,marginTop:2}}>{this.state.up }</Text>
             }
             </TouchableOpacity>
           }
           
         </View>
-        <Text style={{marginTop:10,lineHeight:18}}>{!!this.props.comment.content ? this.props.comment.content : '推荐了'}</Text>
+        <Text style={{marginTop:10,lineHeight:18,color:'black',}}>{!!this.props.comment.content ? this.props.comment.content : '推荐了'}</Text>
 
         {this.props.comment.pic != null && this.props.comment.pic != '' &&
         <AutoSizeImage style={{marginTop:10}} maxWidth={width*0.5} source={{uri:baseimgurl + this.props.comment.pic}}></AutoSizeImage>
@@ -218,6 +219,12 @@ class ComentinArticle extends React.PureComponent {
             {this.state.replycount > 0 &&
             <View style={{paddingVertical:5,paddingHorizontal:10,borderRadius:12,backgroundColor:'#f7f7f7'}}><Text style={{fontSize:12,color:'#222'}}>{this.state.replycount}回复</Text></View>
             }
+            {this.props.comment.onlyauth == 1 &&
+            <View style={{flexDirection:'row',alignItems:'center',marginLeft:10,backgroundColor:'#e6f2fd',paddingHorizontal:7,paddingVertical:5,borderRadius:5}}>
+              <AntDesign name='pushpino' size={11} color={'#1787fb'}/>
+              <Text style={{marginLeft:2,color:'#1787fb',fontSize:11}}>仅作者可见</Text>
+            </View>
+            }
           </View>
 
           <View style={{flexDirection:'row',alignItems:'center',}}>
@@ -228,7 +235,7 @@ class ComentinArticle extends React.PureComponent {
           }
             <TouchableOpacity onPress={this.report} style={{width:40,height:40,alignItems:'flex-end',justifyContent:'center'}}>
             <View style={{alignItems:'center',justifyContent:'center',width:20,paddingVertical:1,borderRadius:3,backgroundColor:'#f3f3f3'}}>
-           <AntDesign name='close' size={9} color={'#888'}/>
+            <AntDesign name='close' size={9} color={'#888'}/>
            </View>
           </TouchableOpacity>
           </View>
