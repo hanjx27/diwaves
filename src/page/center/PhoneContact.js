@@ -45,6 +45,7 @@ export default class PhoneContact extends React.Component {
       }
     ).then(() => {
       Contacts.getAllWithoutPhotos((err, contacts) => {
+        
         if (err === 'denied'){
           // error
           Alert.alert('获取通讯录失败');
@@ -58,9 +59,10 @@ export default class PhoneContact extends React.Component {
             } else {
               name = contacts[i].givenName
             }
+            console.log(name)
             for(let j = 0;j < contacts[i].phoneNumbers.length;j++) {
-              const phone = contacts[i].phoneNumbers[j].number.replace(/-/g,'').replace(/ /g,'');
-              phones.push(contacts[i].phoneNumbers[j].number);
+              const phone = contacts[i].phoneNumbers[j].number.replace(/-/g,'').replace(/ /g,'').replace(/ /g,'');
+              phones.push(phone);
               phone_name[phone] = name;
             }
           }

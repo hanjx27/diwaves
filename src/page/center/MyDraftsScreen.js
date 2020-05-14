@@ -64,7 +64,7 @@ export default class MyDraftsScreen extends React.Component {
     try {
       let draftsList = this.state.draftsList;
       for(let i = 0;i < draftsList.length;i++) {
-        if(draftsList[i].id = draft.id) {
+        if(draftsList[i].id == draft.id) {
           draftsList.splice(i,1);
           break;
         }
