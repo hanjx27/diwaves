@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {Image,PermissionsAndroid,Modal,StatusBar,TextInput,NativeModules,PanResponder,SafeAreaView,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
+import {ActivityIndicator,Image,PermissionsAndroid,Modal,StatusBar,TextInput,NativeModules,PanResponder,SafeAreaView,Keyboard,View,StyleSheet,Platform,Text,WebView,Dimensions,TouchableOpacity,TouchableNativeFeedback,TouchableWithoutFeedback,Animated, Alert} from 'react-native';
 const { width, height } = Dimensions.get('window');
 import Header from '../../components/Header';
 import {px,isIphoneX} from '../../utils/px';
@@ -12,6 +12,7 @@ const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : StatusBarManager.HEIGHT;
 import {WToast,WSnackBar,WModal} from 'react-native-smart-tip'
 import Contacts from 'react-native-contacts';
 import {Colors} from '../../constants/iColors';
+import Feather from 'react-native-vector-icons/Feather'
 export default class PhoneContact extends React.Component {
   static navigationOptions = ({ navigation }) => {
     return {
@@ -24,10 +25,17 @@ export default class PhoneContact extends React.Component {
     this.user = null;
     this.addcontact = null;
     this.phone_name = {}
+
+    this.phone_contacts = [];
     this.state = {
-       phoneusers:[],
+       phoneusers:[], // id name phone avatarurl
+       phone_contacts:[],
        addfriendVisible:false,
-       addfriendcontent:''
+       addfriendcontent:'',
+
+       searchtext:'',
+       uploading:true,
+       uploadingText:'通讯录读取中'
     }
   }
   
@@ -36,22 +44,15 @@ export default class PhoneContact extends React.Component {
 
   componentWillMount() {
 
-    PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-      {
-        'title': '通讯录',
-        'message': 'app需要获取您的通讯录权限',
-        'buttonPositive': '确认'
-      }
-    ).then(() => {
+    if(Platform.OS === 'ios') {
       Contacts.getAllWithoutPhotos((err, contacts) => {
-        
+          
         if (err === 'denied'){
           // error
           Alert.alert('获取通讯录失败');
         } else {
           let phones = [];
-          let phone_name = {};
+          let phone_contacts = [];
           for(let i = 0;i < contacts.length;i++) {
             let name = '';
             if(contacts[i].familyName != null && contacts[i].familyName != contacts[i].givenName) {
@@ -59,21 +60,86 @@ export default class PhoneContact extends React.Component {
             } else {
               name = contacts[i].givenName
             }
-            console.log(name)
-            for(let j = 0;j < contacts[i].phoneNumbers.length;j++) {
-              const phone = contacts[i].phoneNumbers[j].number.replace(/-/g,'').replace(/ /g,'').replace(/ /g,'');
+            
+            if(contacts[i].phoneNumbers.length == 0) {
+              continue;
+            }
+            //for(let j = 0;j < contacts[i].phoneNumbers.length;j++) {
+            for(let j = 0;j < 1;j++) {
+              let phone = contacts[i].phoneNumbers[j].number.replace(/[^0-9]/ig,"");
+              if(phone.length != 11) {
+                continue;
+              }
               phones.push(phone);
-              phone_name[phone] = name;
+      
+              let contact = {}
+              contact.phone = phone;
+              contact.phone_name = name;
+              contact.app_user = null;
+              phone_contacts.push(contact);
             }
           }
-          this.phone_name = phone_name;
-          const newphones = [...new Set(phones)];
+          this.phone_contacts = phone_contacts;
+          const newphones = [...new Set(phones)]; //去重
           if(newphones.length > 0) {
             this.getUsersByContacts(newphones);
           }
         }
       })
-    })
+    } else if(Platform.OS !== 'ios') {
+      PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+        {
+          'title': '通讯录',
+          'message': 'app需要获取您的通讯录权限',
+          'buttonPositive': '确认'
+        }
+      ).then(() => {
+        Contacts.getAllWithoutPhotos((err, contacts) => {
+          
+          if (err === 'denied'){
+            // error
+            Alert.alert('获取通讯录失败');
+          } else {
+            let phones = [];
+        
+            let phone_contacts = [];
+            for(let i = 0;i < contacts.length;i++) {
+              let name = '';
+              if(contacts[i].familyName != null && contacts[i].familyName != contacts[i].givenName) {
+                name = contacts[i].familyName + contacts[i].givenName
+              } else {
+                name = contacts[i].givenName
+              }
+              
+              if(contacts[i].phoneNumbers.length == 0) {
+                continue;
+              }
+              //for(let j = 0;j < contacts[i].phoneNumbers.length;j++) {
+              for(let j = 0;j < 1;j++) {
+                let phone = contacts[i].phoneNumbers[j].number.replace(/[^0-9]/ig,"");
+                if(phone.length != 11) {
+                  continue;
+                }
+                phones.push(phone);
+        
+                let contact = {}
+                contact.phone = phone;
+                contact.phone_name = name;
+                contact.app_user = null;
+                phone_contacts.push(contact);
+              }
+            }
+            this.phone_contacts = phone_contacts;
+            const newphones = [...new Set(phones)]; //去重
+            if(newphones.length > 0) {
+              this.getUsersByContacts(newphones);
+            }
+          }
+        })
+      })
+    }
+    
   }
 
   getUsersByContacts = async(phones) => {
@@ -81,11 +147,44 @@ export default class PhoneContact extends React.Component {
       const result = await Request.post('getUsersByContacts',{
         contacts:JSON.stringify(phones).replace('[','').replace(']','')
       });
-      this.setState({
-        phoneusers:result.data
-      })
+      if(result.data) {
+        let phone_user_map = {};
+        for(let i = 0 ;i < result.data.length;i++) {
+          let user = result.data[i];
+          phone_user_map[user.phone] = user;
+        }
+        for(let i = 0;i < this.phone_contacts.length;i++) {
+          let contact = this.phone_contacts[i];
+          if(phone_user_map[contact.phone]) {
+            contact.app_user = phone_user_map[contact.phone]
+          }
+        }
+
+        this.setState({
+          phone_contacts:this.phone_contacts
+        },()=>{
+          this.setState({
+            uploading:false
+          })
+        })
+      }
+      
     } catch (error) {
     }
+  }
+
+  invite = async(item)=>{
+    await Request.post('inviteReg',{
+      phone:item.phone
+    });
+    const toastOpts = {
+      data: '邀请已发出',
+      textColor: '#ffffff',
+      backgroundColor: Colors.TextColor,
+      duration: 1000, //1.SHORT 2.LONG
+      position: WToast.position.BOTTOM, // 1.TOP 2.CENTER 3.BOTTOM
+    }
+    WToast.show(toastOpts)
   }
 
   componentDidMount= async() => {
@@ -139,38 +238,86 @@ export default class PhoneContact extends React.Component {
     }
   }
 
+  search = () => {
+    if(this.state.searchtext == '') {
+      this.setState({
+        phone_contacts:this.phone_contacts
+      })
+      return;
+    }
+    let phone_contacts = [];
+    for(let i = 0;i < this.phone_contacts.length;i++) {
+      if(this.phone_contacts[i].phone.indexOf(this.state.searchtext) >= 0 || this.phone_contacts[i].phone_name.indexOf(this.state.searchtext) >= 0) {
+        phone_contacts.push(this.phone_contacts[i]);
+      }
+    }
+    this.setState({
+      phone_contacts:phone_contacts
+    })
+  }
+
   render() {
     return (
       <View style={{flex: 1,flexDirection:'column',backgroundColor: 'white'}}>
+
+      <View style={{display:this.state.uploading?'flex':'none',position:this.state.uploading?'absolute':'relative',zIndex:9999,width:width,height:height,alignItems:'center',justifyContent:"center"}}>
+          <View style={{width:px(200),height:px(200),borderRadius:5,backgroundColor:"rgba(0,0,0,0.8)",alignItems:'center',justifyContent:"center"}}>
+            <ActivityIndicator  color='white'/>
+            <Text style={{marginTop:5,color:'white',fontSize:11}}>{this.state.uploadingText}</Text>
+          </View>
+      </View>
+
       {Platform.OS === 'ios' && <View style={topStyles.topBox}></View>}
       {Platform.OS !== 'ios'&& <View style={topStyles.androidTop}></View>}
       <Header title='手机联系人'/>
+      
+      <View style={{position:'relative',marginHorizontal:15,marginTop:15}}>
+      <TextInput value={this.state.searchtext} onChangeText = {(searchtext) => this.setState({searchtext:searchtext})} placeholder="联系人/手机号" onSubmitEditing={this.search}  
+      style={{color:'black',fontSize:15,width:width - 30,backgroundColor:"#f5f5f5",height:40,borderRadius:5,paddingLeft:40}}></TextInput>
+      <View style={{width:40,height:40,position:'absolute',top:0,left:0,alignItems:'center',justifyContent:'center'}}>
+        <Feather name='search' size={20} color={'#333'}/>
+      </View>
+      </View>
 
-      <ScrollView>
+     <ScrollView>
 
       <View style={{flex:1}}>
-      {this.state.phoneusers.map(item => {
-            if(item.id == this.user.id) {
+      {this.state.phone_contacts.map(item => {
+            if(item.app_user && item.app_user.id == this.user.id) {
              return (<View></View>)
+            } else if(item.app_user == null) {
+              return (
+                <View style={{alignItems:'center',flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,paddingHorizontal:15,paddingVertical:10,backgroundColor:'white'}}>
+                  <Image style={{width:40,height:40,borderRadius:20}} source={{uri:baseimgurl+'user.png'}}></Image>
+                  <View style={{marginLeft:15,flex:1,flexDirection:"column"}}>
+                    <Text style={{color:'#000',fontSize:16}}>{item.phone_name + "(" + item.phone + ")"}</Text>
+                    <Text style={{color:'#666',fontSize:13,marginTop:5}}>{'尚未注册'}</Text>
+                  </View>
+                  <TouchableOpacity onPress={()=>{this.invite(item)}} style={{marginLeft:5,justifyContent:"center",alignItems:"center",height:30,paddingHorizontal:15,backgroundColor:"#1fb922",borderRadius:5}}>
+                    <Text style={{color:"white",fontSize:14,fontWeight:'bold'}}>邀请注册</Text>
+                  </TouchableOpacity>
+                </View>
+              )
             } else {
               let isfriend = false;
               for(let i = 0;i < this.friendsList.length;i++) {
-                if(this.friendsList[i].id == item.id) {
+                if(this.friendsList[i].id == item.app_user.id) {
                   isfriend = true;
+                  break;
                 }
               }
               return (
-                <TouchableOpacity onPress={()=>{this.props.navigation.navigate('PersonScreen',{personid:item.id})}} style={{alignItems:'center',flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,paddingHorizontal:15,paddingVertical:10,backgroundColor:'white'}}>
-                <Image style={{width:40,height:40,borderRadius:20}} source={{uri:baseimgurl+item.avatar}}></Image>
+                <TouchableOpacity onPress={()=>{this.props.navigation.navigate('PersonScreen',{personid:item.app_user.id})}} style={{alignItems:'center',flexDirection:'row',borderBottomColor:'#eee',borderBottomWidth:0.5,paddingHorizontal:15,paddingVertical:10,backgroundColor:'white'}}>
+                <Image style={{width:40,height:40,borderRadius:20}} source={{uri:baseimgurl+item.app_user.avatar}}></Image>
                 <View style={{marginLeft:15,flex:1,flexDirection:"column"}}>
-                  <Text style={{color:'#000',fontSize:16}}>{this.phone_name[item.phone]}</Text>
-                  <Text style={{color:'#666',fontSize:13,marginTop:5}}>{'昵称：' + item.name}</Text>
+                  <Text style={{color:'#000',fontSize:16}}>{item.phone_name + "(" + item.phone + ")"}</Text>
+                  <Text style={{color:'#666',fontSize:13,marginTop:5}}>{'昵称：' + item.app_user.name}</Text>
                 </View>
                 {isfriend &&
                   <Text style={{marginLeft:10,color:"#999",fontSize:14,fontWeight:'bold'}}>已添加</Text>
                 }
                 {!isfriend &&
-                <TouchableOpacity onPress={()=>{this.addfriend(item)}} style={{marginLeft:5,justifyContent:"center",alignItems:"center",height:30,paddingHorizontal:15,backgroundColor:"#1fb922",borderRadius:5}}>
+                <TouchableOpacity onPress={()=>{this.addfriend(item.app_user)}} style={{marginLeft:5,justifyContent:"center",alignItems:"center",height:30,paddingHorizontal:15,backgroundColor:"#1fb922",borderRadius:5}}>
                 <Text style={{color:"white",fontSize:14,fontWeight:'bold'}}>加好友</Text>
                 </TouchableOpacity>
                 }
