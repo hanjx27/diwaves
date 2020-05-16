@@ -28,13 +28,13 @@ export default class App extends Component<Props> {
 
   async componentWillMount() {
     await this.loginCall();
-    setInterval(async() => {
+    /*setInterval(async() => {
       await this.loginCall();
-    }, 60000); //每分钟去
+    }, 60000); //每分钟去*/
    }
 
    loginCall = async() => {
-    console.log(this.logindate)
+    console.log('logincall:' + this.logindate)
     let date = new Date().getDate();
     if(date == this.logindate) {
       console.log('今日已经请求')
